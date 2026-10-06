@@ -56,7 +56,7 @@ include_mcp:
 mcp_auth_version:
   type: str
   help: mcp-auth release tag to pin
-  default: "0.1.0"
+  default: "v0.1.1"
   when: "{{ include_mcp }}"
 
 mcp_can_connect:

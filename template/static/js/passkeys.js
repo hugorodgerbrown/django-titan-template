@@ -8,7 +8,10 @@
  * CSRF token.
  *
  * Sign-in also starts conditional mediation where supported: focusing the
- * email field offers saved passkeys in the browser's autofill.
+ * email field offers saved passkeys in the browser's autofill. Autofill and
+ * the button can then run at once; the server keeps a challenge for each,
+ * and their requests go out one at a time so neither overwrites the other's
+ * session.
  */
 (function () {
   'use strict';
@@ -57,8 +60,18 @@
 
   // ---------- sign in ----------
 
+  let signInQueue = Promise.resolve();
+
+  /** postJSON, but after every earlier sign-in request has answered. */
+  function queuedPostJSON(url, body) {
+    const send = () => postJSON(url, body);
+    const result = signInQueue.then(send, send);
+    signInQueue = result.catch(() => undefined);
+    return result;
+  }
+
   async function signIn(section, mediation, signal) {
-    const options = await postJSON(section.dataset.optionsUrl);
+    const options = await queuedPostJSON(section.dataset.optionsUrl);
     if (!options.ok) throw new Error('options ' + options.status);
     const credential = await navigator.credentials.get({
       publicKey: codec.requestOptions(options.data),
@@ -66,7 +79,7 @@
       signal: signal,
     });
     if (!credential) return;
-    const result = await postJSON(section.dataset.verifyUrl, {
+    const result = await queuedPostJSON(section.dataset.verifyUrl, {
       credential: codec.credentialToJSON(credential),
       next: section.dataset.next || '',
     });
