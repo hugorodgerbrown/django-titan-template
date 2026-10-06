@@ -53,6 +53,19 @@ def test_add_then_list_notes(rpc: Any, user: Any) -> None:
     assert Note.objects.get().owner == user
 
 
+@pytest.mark.parametrize(
+    ("tool", "heading"),
+    [("privacy_policy", "# Privacy notice"), ("terms_of_service", "# Terms"), ("help", "# Help")],
+)
+def test_public_pages_come_back_as_markdown(rpc: Any, tool: str, heading: str) -> None:
+    """The text content is the Markdown itself; structuredContent adds title and URL."""
+    result = rpc("tools/call", {"name": tool, "arguments": {}})
+    text = result["content"][0]["text"]
+    assert heading in text
+    assert text == result["structuredContent"]["markdown"]
+    assert result["structuredContent"]["url"].startswith("http")
+
+
 def test_tool_errors_are_readable(rpc: Any) -> None:
     """A bad argument is an isError result, not a protocol error."""
     result = rpc("tools/call", {"name": "list_notes", "arguments": {"limit": 0}})
