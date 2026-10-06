@@ -74,6 +74,33 @@ describe('sign in', () => {
   });
 });
 
+describe('autofill and the button together', () => {
+  it('sends their requests one at a time', async () => {
+    let release;
+    const first = new Promise((resolve) => {
+      release = resolve;
+    });
+    globalThis.PublicKeyCredential = { isConditionalMediationAvailable: () => Promise.resolve(true) };
+    globalThis.fetch = vi.fn((url) => {
+      if (globalThis.fetch.mock.calls.length === 1) return first.then(() => respond(200, { challenge: 'AQID' }));
+      return url === '/o' ? respond(200, { challenge: 'BAUG' }) : respond(400, {});
+    });
+    navigator.credentials.get = vi.fn(() => new Promise(() => {})); // autofill waits for the user
+    await load(SIGN_IN);
+    await flush();
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1); // autofill's options, still in flight
+
+    document.querySelector('[data-passkey-button]').click();
+    await flush();
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1); // the button's waits its turn
+
+    release();
+    await flush();
+    await flush();
+    expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe('add a passkey', () => {
   it('shows the controls and reports a failed registration', async () => {
     globalThis.fetch = vi.fn((url) => (url === '/o' ? respond(200, { challenge: 'AQID', user: { id: 'AQ' } }) : respond(400, {})));

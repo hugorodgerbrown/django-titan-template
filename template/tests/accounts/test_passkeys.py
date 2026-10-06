@@ -5,6 +5,7 @@ real authenticator, which the browser journey (tests/e2e/test_passkey.py)
 supplies. These tests hold everything around the verification.
 """
 
+import base64
 import json
 from types import SimpleNamespace
 from typing import Any
@@ -131,12 +132,31 @@ def test_registering_needs_sign_in(client: Client) -> None:
 # ---------- signing in with one ----------
 
 
-def sign_in_with(client: Client, credential: Any, next_url: str = "") -> Any:
-    """Fetch options, then post ``credential``."""
-    client.post(reverse("accounts:passkey_sign_in_options"))
+def signed(challenge: str, credential: dict[str, Any] = CREDENTIAL) -> dict[str, Any]:
+    """``credential`` as a browser's answer to ``challenge`` (the signature is stubbed)."""
+    client_data = json.dumps({"type": "webauthn.get", "challenge": challenge}).encode()
+    encoded = base64.urlsafe_b64encode(client_data).decode().rstrip("=")
+    return {**credential, "response": {"clientDataJSON": encoded}}
+
+
+def options(client: Client) -> str:
+    """Ask for sign-in options; return the challenge."""
+    return str(client.post(reverse("accounts:passkey_sign_in_options")).json()["challenge"])
+
+
+def answer(client: Client, credential: Any, next_url: str = "") -> Any:
+    """Post a sign-in answer."""
     return post_json(
         client, reverse("accounts:passkey_sign_in"), {"credential": credential, "next": next_url}
     )
+
+
+def sign_in_with(client: Client, credential: Any, next_url: str = "") -> Any:
+    """Fetch options, then post ``credential`` signed over their challenge."""
+    challenge = options(client)
+    if isinstance(credential, dict) and "id" in credential:
+        credential = signed(challenge, credential)
+    return answer(client, credential, next_url)
 
 
 def test_sign_in_options_allow_any_passkey(client: Client) -> None:
@@ -174,10 +194,37 @@ def test_passkey_that_does_not_verify(client: Client) -> None:
 
 
 def test_passkey_sign_in_needs_the_challenge(client: Client, verified_sign_in: None) -> None:
-    """Posting without options first fails."""
+    """An answer to a challenge this session wasn't given fails."""
     PasskeyFactory.create(credential_id="credential-1")
-    response = post_json(client, reverse("accounts:passkey_sign_in"), {"credential": CREDENTIAL})
-    assert response.status_code == 400
+    assert answer(client, signed("never-issued")).status_code == 400
+    options(client)
+    assert answer(client, signed("never-issued")).status_code == 400
+
+
+def test_two_ceremonies_at_once(client: Client, verified_sign_in: None) -> None:
+    """Autofill and the button each get a challenge; either answer signs in, once."""
+    PasskeyFactory.create(credential_id="credential-1")
+    autofill, button = options(client), options(client)
+    assert answer(client, signed(autofill)).status_code == 200
+    assert answer(client, signed(button)).status_code == 200
+    assert answer(client, signed(button)).status_code == 400
+
+
+def test_a_failed_answer_spends_only_its_own_challenge(client: Client) -> None:
+    """A bad signature uses up the challenge it signed and no other."""
+    PasskeyFactory.create(credential_id="credential-1")
+    first, second = options(client), options(client)
+    assert answer(client, signed(first)).status_code == 400
+    assert client.session["passkeys.sign_in_challenges"] == [second]
+
+
+def test_old_challenges_lapse(client: Client, verified_sign_in: None) -> None:
+    """Only the last few challenges are kept."""
+    PasskeyFactory.create(credential_id="credential-1")
+    oldest = options(client)
+    for _ in range(passkeys.MAX_SIGN_IN_CHALLENGES):
+        options(client)
+    assert answer(client, signed(oldest)).status_code == 400
 
 
 def test_passkey_for_a_closed_account(client: Client, verified_sign_in: None) -> None:
@@ -198,6 +245,14 @@ def test_passkey_sign_in_refuses_bad_bodies(client: Client, body: str) -> None:
 def test_credential_without_an_id(client: Client) -> None:
     """A credential with no id can't be looked up."""
     assert sign_in_with(client, {"type": "public-key"}).status_code == 400
+
+
+@pytest.mark.parametrize("client_data", ["%%%", "bm90IGpzb24", "WzFd"])
+def test_credential_with_unreadable_client_data(client: Client, client_data: str) -> None:
+    """A clientDataJSON that isn't base64url JSON with a challenge is a 400."""
+    options(client)
+    credential = {**CREDENTIAL, "response": {"clientDataJSON": client_data}}
+    assert answer(client, credential).status_code == 400
 
 
 def test_passkey_options_are_rate_limited(client: Client) -> None:

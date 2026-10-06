@@ -5,6 +5,10 @@ fresh challenge (kept in the session), the browser signs it, and the
 server verifies the answer against the same challenge, which is then
 dropped so it can't be replayed.
 
+The sign-in page can run two ceremonies at once (the email field's
+autofill and the passkey button), so the session keeps the last few
+sign-in challenges and each answer is checked against the one it signed.
+
 Lifted from Snowdesk's ``apps/accounts/services/passkey.py``, with user
 verification required: a passkey alone signs someone in, so it has to be
 the person (Face ID, fingerprint, PIN) and not just the device.
@@ -34,7 +38,9 @@ from apps.accounts.models import Passkey
 logger = logging.getLogger(__name__)
 
 _REGISTER_CHALLENGE = "passkeys.register_challenge"
-_SIGN_IN_CHALLENGE = "passkeys.sign_in_challenge"
+_SIGN_IN_CHALLENGES = "passkeys.sign_in_challenges"
+# Outstanding sign-in challenges kept per session; older ones lapse.
+MAX_SIGN_IN_CHALLENGES = 5
 
 
 class PasskeyError(Exception):
@@ -125,19 +131,30 @@ def sign_in_options(session: SessionBase) -> dict[str, Any]:
         rp_id=settings.WEBAUTHN_RP_ID,
         user_verification=UserVerificationRequirement.REQUIRED,
     )
-    session[_SIGN_IN_CHALLENGE] = bytes_to_base64url(options.challenge)
+    challenges = [*session.get(_SIGN_IN_CHALLENGES, []), bytes_to_base64url(options.challenge)]
+    session[_SIGN_IN_CHALLENGES] = challenges[-MAX_SIGN_IN_CHALLENGES:]
     return _options_dict(options)
+
+
+def _signed_challenge(credential: dict[str, Any]) -> str:
+    """Return the challenge the browser signed, from the answer's clientDataJSON."""
+    client_data = json.loads(base64url_to_bytes(credential["response"]["clientDataJSON"]))
+    return str(client_data["challenge"])
 
 
 def authenticate(credential_json: str, session: SessionBase) -> Any:
     """Verify the browser's ``get()`` answer and return the passkey's user."""
-    challenge = session.pop(_SIGN_IN_CHALLENGE, None)
-    if not challenge:
-        raise PasskeyError("No sign-in challenge in the session.")
     try:
-        credential_id = str(json.loads(credential_json)["id"])
+        credential = json.loads(credential_json)
+        credential_id = str(credential["id"])
+        challenge = _signed_challenge(credential)
     except (ValueError, KeyError, TypeError) as exc:
         raise PasskeyError("Not a WebAuthn credential.") from exc
+    challenges = session.get(_SIGN_IN_CHALLENGES, [])
+    if challenge not in challenges:
+        raise PasskeyError("No matching sign-in challenge in the session.")
+    # Used once, whether or not it verifies.
+    session[_SIGN_IN_CHALLENGES] = [c for c in challenges if c != challenge]
 
     passkey = Passkey.objects.select_related("user").filter(credential_id=credential_id).first()
     if passkey is None:
