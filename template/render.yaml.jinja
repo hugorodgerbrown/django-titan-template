@@ -1,0 +1,49 @@
+# Render Blueprint: one web service and a daily clean-up job. Both use a
+# database on a (shared) Render Postgres instance; set DATABASE_URL to its
+# internal URL when Render prompts for it. See "Deploy" in the README.
+#
+# uv is pinned: the build runs with the service's secrets in its environment,
+# so it installs a known version, and uv then installs exactly what uv.lock lists.
+services:
+  - type: web
+    name: {{ project_slug }}
+    runtime: python
+    region: {{ render_region }}
+    plan: starter
+    buildCommand: >-
+      pip install uv==0.12.22 && uv sync --locked --no-dev &&
+      uv run --no-sync python manage.py collectstatic --noinput
+    # Runs before each deploy goes live; a failed migration stops the deploy.
+    preDeployCommand: uv run --no-sync python manage.py migrate --noinput
+    startCommand: uv run --no-sync gunicorn config.wsgi --bind 0.0.0.0:$PORT --access-logfile -
+    # Answers 200 without a sign-in or a database query.
+    healthCheckPath: /healthz
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: DJANGO_DEBUG
+        value: "0"
+      # Major.minor only, so Render uses its latest prebuilt 3.14.
+      - key: PYTHON_VERSION
+        value: "3.14"
+
+  # Idempotency records live 24 hours; this deletes the expired ones.
+  - type: cron
+    name: {{ project_slug }}-purge
+    runtime: python
+    region: {{ render_region }}
+    plan: starter
+    schedule: "17 3 * * *"
+    buildCommand: pip install uv==0.12.22 && uv sync --locked --no-dev
+    startCommand: uv run --no-sync python manage.py purge_idempotency_records --commit
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: DJANGO_SECRET_KEY
+        sync: false
+      - key: DJANGO_DEBUG
+        value: "0"
+      - key: PYTHON_VERSION
+        value: "3.14"

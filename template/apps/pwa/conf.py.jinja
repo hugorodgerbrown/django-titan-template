@@ -1,0 +1,44 @@
+"""The app's identity as the manifest, launch screen and browser chrome show it.
+
+Set once by the project template; edit freely. ``bin/make-icons`` draws the
+icons in ``static/icons/`` from the same name and colour.
+"""
+
+APP_NAME = "{{ project_name }}"
+SHORT_NAME = "{{ project_name[:12] }}"
+DESCRIPTION = "{{ description }}"
+THEME_COLOUR = "{{ theme_colour }}"
+BACKGROUND_COLOUR = "#ffffff"
+
+# Prefix for every Cache Storage name the service worker owns, so it never
+# deletes another app's caches on the same origin.
+CACHE_PREFIX = "{{ project_slug }}"
+
+# Paths the service worker never caches: sign-in, admin and anything that
+# must always hit the server.
+NEVER_CACHE = ["/admin/", "/login/", "/logout/", "/oauth/", "/.well-known/", "/mcp"]
+
+# Static files fetched when the service worker installs, so the shell works
+# offline from the first launch. Keep this list small: tests/test_performance.py
+# holds it to a byte budget.
+PRECACHE_STATIC = [
+    "css/app.css",
+    "vendor/htmx.min.js",
+    "js/launch_gate.js",
+    "js/launch_shell.js",
+    "js/idb.js",
+    "js/outbox_core.js",
+    "js/outbox.js",
+    "js/pwa.js",
+    "js/notes.js",
+    "icons/icon-192.png",
+]
+
+# Loaded into the service worker with importScripts(), in this order.
+WORKER_SCRIPTS = [
+    "js/idb.js",
+    "js/outbox_core.js",
+    "js/outbox.js",
+    "js/sw_core.js",
+    "js/sw_worker.js",
+]
