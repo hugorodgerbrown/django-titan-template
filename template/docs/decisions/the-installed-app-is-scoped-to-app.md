@@ -13,8 +13,8 @@ cached or shown inside the installed app.
 
 The app is everything under `/app/`: the manifest's `scope`, `start_url`
 and `id`, the worker at `/app/sw.js`, the offline page and every signed-in
-page. Public pages (`/`, `/terms/`, `/privacy/`), sign-in (`/signin/`),
-`/admin/`, `/oauth/` and `/mcp` sit outside it. The worker bypasses any
+page. Public pages (`/`, `/terms/`, `/privacy/`, `/help/`), sign-in
+(`/signin/`), `/admin/`, `/oauth/` and `/mcp` sit outside it. The worker bypasses any
 same-origin request outside the scope except static files, which it still
 caches for the app's pages.
 
