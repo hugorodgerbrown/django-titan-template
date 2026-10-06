@@ -1,6 +1,7 @@
 """Tests for apps.core.idempotency: each keyed write runs at most once."""
 
 import json
+from collections.abc import Callable
 from typing import Any
 
 import pytest
@@ -98,6 +99,57 @@ def test_server_error_releases_the_key(rf: RequestFactory) -> None:
         )
     assert len(calls) == 2
     assert IdempotencyRecord.objects.get().response_status == 201
+
+
+def _csrf_failure() -> HttpResponse:
+    """A 403 as the CSRF failure view sends it."""
+    response = HttpResponse(status=403)
+    response["X-CSRF-Failure"] = "1"
+    return response
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "first",
+    [
+        lambda: HttpResponse(status=401),
+        _csrf_failure,
+        lambda: HttpResponse(status=408),
+        lambda: HttpResponse(status=425),
+        lambda: HttpResponse(status=429),
+    ],
+    ids=["401", "csrf-403", "408", "425", "429"],
+)
+def test_paused_or_retried_responses_release_the_key(
+    rf: RequestFactory, first: Callable[[], HttpResponse]
+) -> None:
+    """A reply the outbox retries isn't stored, so the retry reaches the view."""
+    calls: list[int] = []
+
+    def view(request: Any) -> HttpResponse:
+        calls.append(1)
+        return first() if len(calls) == 1 else HttpResponse(status=201)
+
+    middleware = IdempotencyMiddleware(view)
+    for _ in range(2):
+        middleware(rf.post("/x", headers={"Idempotency-Key": "k"}))
+    assert len(calls) == 2
+    assert IdempotencyRecord.objects.get().response_status == 201
+
+
+@pytest.mark.django_db
+def test_a_plain_403_is_stored(rf: RequestFactory) -> None:
+    """A permission refusal is final: the repeat replays it."""
+    calls: list[int] = []
+
+    def view(request: Any) -> HttpResponse:
+        calls.append(1)
+        return HttpResponse(status=403)
+
+    middleware = IdempotencyMiddleware(view)
+    for _ in range(2):
+        middleware(rf.post("/x", headers={"Idempotency-Key": "k"}))
+    assert len(calls) == 1
 
 
 @pytest.mark.django_db

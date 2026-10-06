@@ -1,4 +1,4 @@
-"""Django settings for {{ project_name }}.
+"""Django settings for {{ project_slug }}.
 
 One module for every environment. Anything that differs comes from an
 environment variable (or `.env` locally, via python-decouple); the
@@ -15,6 +15,8 @@ from django.utils.csp import CSP
 {%- if include_mcp %}
 from mcp_auth.conf import oauth2_settings
 {%- endif %}
+
+from apps.pwa import conf as pwa_conf
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -181,7 +183,7 @@ SIGN_IN_MAX_CODE_ATTEMPTS = 5
 # Passkeys (WebAuthn). The relying party is this site's host name; a
 # passkey only works on the host it was made for.
 WEBAUTHN_RP_ID: str = config("WEBAUTHN_RP_ID", default=urlsplit(SITE_URL).hostname or "localhost")
-WEBAUTHN_RP_NAME = "{{ project_name }}"
+WEBAUTHN_RP_NAME = pwa_conf.APP_NAME
 WEBAUTHN_ORIGINS: list[str] = config("WEBAUTHN_ORIGINS", default=SITE_URL, cast=Csv())
 
 # Email. The console in development; any SMTP relay in production (Django
@@ -205,7 +207,10 @@ MAILERS = {
         else {},
     }
 }
-DEFAULT_FROM_EMAIL: str = config("DEFAULT_FROM_EMAIL", default="{{ project_name }} <noreply@localhost>")
+DEFAULT_FROM_EMAIL: str = config(
+    "DEFAULT_FROM_EMAIL",
+    default=f"{pwa_conf.APP_NAME} <noreply@localhost>",
+)
 
 # Background tasks (django.tasks). Email is sent from a task so a slow mail
 # server never holds a request; the immediate backend runs it in-process.
@@ -249,7 +254,7 @@ LOGGING = {
 # connector. The shared Titan preset: PKCE, rotating refresh tokens, DCR and
 # CIMD, held to Claude's callbacks and loopback.
 OAUTH2_PROVIDER = oauth2_settings(
-    resource_name="{{ project_name }}",
+    resource_name=pwa_conf.APP_NAME,
     scope_description="Read and add your notes",
 )
 MCP_AUTH = {"CAN_CONNECT": "{{ mcp_can_connect }}"}

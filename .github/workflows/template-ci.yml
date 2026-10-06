@@ -28,8 +28,14 @@ jobs:
         include:
           - variant: with-mcp
             data: --data include_mcp=true
+            project_name: Template CI
+            description: ""
+          # Quotes, an apostrophe and a backslash in the answers prove they
+          # are escaped wherever they land in Python and TOML.
           - variant: plain
             data: --data include_mcp=false
+            project_name: Hugo's "Notes" & \ CI
+            description: A "quoted" description, with an apostrophe's \ backslash
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -40,11 +46,17 @@ jobs:
         with:
           node-version: "22"
       - name: Generate the project
+        env:
+          PROJECT_NAME: ${{ matrix.project_name }}
+          DESCRIPTION: ${{ matrix.description }}
         run: |
           git config --global user.email ci@example.com
           git config --global user.name CI
+          extra=()
+          if [ -n "$DESCRIPTION" ]; then extra+=(--data "description=$DESCRIPTION"); fi
           uvx copier copy --trust --defaults --vcs-ref HEAD \
-            --data project_name="Template CI" ${{ matrix.data }} . "$RUNNER_TEMP/app"
+            --data "project_name=$PROJECT_NAME" --data project_slug=template-ci "${extra[@]}" \
+            ${{ matrix.data }} . "$RUNNER_TEMP/app"
       - name: Install Chromium for Playwright
         working-directory: ${{ runner.temp }}/app
         run: uv run --frozen --only-group e2e playwright install --with-deps chromium

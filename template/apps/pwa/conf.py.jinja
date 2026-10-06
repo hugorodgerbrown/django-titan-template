@@ -1,12 +1,21 @@
+{#- A Python string literal for a template answer, quoted as ruff format would. #}
+{%- macro py(text) -%}
+{%- if text.count('"') > text.count("'") -%}
+'{{ text | replace("\\", "\\\\") | replace("'", "\\'") }}'
+{%- else -%}
+"{{ text | replace("\\", "\\\\") | replace('"', '\\"') }}"
+{%- endif -%}
+{%- endmacro -%}
 """The app's identity as the manifest, launch screen and browser chrome show it.
 
-Set once by the project template; edit freely. ``bin/make-icons`` draws the
-icons in ``static/icons/`` from the same name and colour.
+Set once by the project template from its answers; edit freely. Settings,
+the admin and the MCP server read the name from here, and ``bin/make-icons``
+drew the icons in ``static/icons/`` from the same name and colour.
 """
 
-APP_NAME = "{{ project_name }}"
-SHORT_NAME = "{{ project_name[:12] }}"
-DESCRIPTION = "{{ description }}"
+APP_NAME = {{ py(project_name) }}
+SHORT_NAME = APP_NAME[:12]
+DESCRIPTION = {{ py(description) }}
 THEME_COLOUR = "{{ theme_colour }}"
 BACKGROUND_COLOUR = "#ffffff"
 

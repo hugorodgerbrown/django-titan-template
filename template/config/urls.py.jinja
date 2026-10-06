@@ -8,9 +8,10 @@ from apps.core.views import healthz
 {%- if include_mcp %}
 from apps.mcp.views import mcp
 {%- endif %}
+from apps.pwa.conf import APP_NAME
 
-admin.site.site_header = "{{ project_name }}"
-admin.site.site_title = "{{ project_name }}"
+admin.site.site_header = APP_NAME
+admin.site.site_title = APP_NAME
 
 urlpatterns = [
     # Public: the homepage, terms, privacy, and signing in and out.

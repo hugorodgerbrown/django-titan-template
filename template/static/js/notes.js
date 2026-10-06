@@ -4,7 +4,9 @@
  * Without this file the form is a normal post. With it, a note is stored on
  * the device first and drawn at once as "Waiting to send", whether or not
  * there is a connection; the outbox sends it when it can, and htmx then
- * refreshes the list (`outbox:sent`, see note_list.html).
+ * refreshes the list (`outbox:sent`, see note_list.html). A note the server
+ * refused shows why, with Retry (after fixing whatever refused it, such as a
+ * permission) and Discard.
  */
 (function () {
   'use strict';
@@ -24,9 +26,9 @@
         if (row.status === 'failed') {
           item.classList.add('note--failed');
           item.querySelector('[data-state]').textContent = 'Not sent (' + row.last_status + ')';
-          const discard = item.querySelector('[data-discard]');
-          discard.hidden = false;
-          discard.addEventListener('click', () => self.Outbox.discard(row.id));
+          item.querySelector('[data-actions]').hidden = false;
+          item.querySelector('[data-retry]').addEventListener('click', () => self.Outbox.retry(row.id));
+          item.querySelector('[data-discard]').addEventListener('click', () => self.Outbox.discard(row.id));
         }
         return item;
       })

@@ -24,7 +24,10 @@
       <li class="note note--pending">
         <p class="note__text" data-text></p>
         <p class="note__meta" data-state>Waiting to send</p>
-        <button class="button button--quiet" type="button" data-discard hidden>Discard</button>
+        <div class="note__actions" data-actions hidden>
+          <button class="button button--quiet" type="button" data-retry>Retry</button>
+          <button class="button button--quiet" type="button" data-discard>Discard</button>
+        </div>
       </li>
     </template>
     <div id="note-items"

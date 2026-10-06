@@ -43,8 +43,13 @@ You never mint keys or handle retries yourself; the outbox does.
 | 2xx | Deleted; `outbox:sent` fires |
 | 5xx, 408, 425, 429, 409 + `Retry-After` | Retried with backoff (2 s doubling to 5 min), up to 10 answers |
 | 401, a redirect, a CSRF 403 (`X-CSRF-Failure`) | Kept unchanged; the drain pauses until the next page load |
-| Any other 4xx | Failed: shown to the user with Discard |
+| Any other 4xx | Failed: shown to the user with Retry and Discard |
 | No answer (offline) | Kept unchanged; doesn't count as an attempt |
+
+The server only stores replies the outbox treats as final. A retried or
+paused answer (5xx, 408, 425, 429, 401, a CSRF 403) releases the
+`Idempotency-Key`, so the next attempt runs the view rather than replaying
+"signed out" for 24 hours.
 
 A row is only ever sent as the user who wrote it. Signing in as someone
 else leaves the first user's writes on the device, unsent, until they sign

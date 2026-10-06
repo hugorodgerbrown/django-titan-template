@@ -15,12 +15,13 @@ from django.http import HttpRequest, HttpResponse, JsonResponse
 from mcp_auth.resource import mcp_endpoint
 
 from apps.mcp.tools import TOOLS, ToolError
+from apps.pwa.conf import APP_NAME
 
 logger = logging.getLogger(__name__)
 
 SUPPORTED_VERSIONS = ("2025-11-25", "2025-06-18", "2025-03-26")
-SERVER_INFO = {"name": "{{ project_slug }}", "title": "{{ project_name }}", "version": "1.0.0"}
-INSTRUCTIONS = "{{ project_name }} keeps short notes for the signed-in user."
+SERVER_INFO = {"name": "{{ project_slug }}", "title": APP_NAME, "version": "1.0.0"}
+INSTRUCTIONS = f"{APP_NAME} keeps short notes for the signed-in user."
 
 PARSE_ERROR = -32700
 INVALID_REQUEST = -32600
