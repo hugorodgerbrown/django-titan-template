@@ -1,6 +1,6 @@
 # Copier questions for a new Titan project.
 #
-#   copier copy --trust gh:hugorodgerbrown/django-template my-project
+#   copier copy --trust gh:hugorodgerbrown/django-titan-template my-project
 #   cd my-project && copier update --trust    # later, to pull template fixes
 #
 # --trust is needed because the post-generation tasks run uv and npm to

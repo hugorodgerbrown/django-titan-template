@@ -1,4 +1,4 @@
-# django-template
+# django-titan-template
 
 The Titan project template: a Django + plain-JavaScript PWA that installs,
 launches with a loading screen, works offline, and queues writes on the
@@ -10,7 +10,7 @@ Snowdesk rather than invented.
 
 ```bash
 uv tool install copier
-copier copy --trust gh:hugorodgerbrown/django-template my-project
+copier copy --trust gh:hugorodgerbrown/django-titan-template my-project
 cd my-project && uv run tox
 ```
 
