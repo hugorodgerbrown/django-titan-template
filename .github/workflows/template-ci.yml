@@ -1,0 +1,65 @@
+# Generate a project from the template, with and without MCP, and run every
+# check the generated project's own CI runs. A template change that breaks a
+# generated project fails here, before any Titan project pulls it in.
+name: Template CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "0 6 * * 1" # weekly: dependency drift shows up without a push
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  generate:
+    name: ${{ matrix.variant }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - variant: with-mcp
+            data: --data include_mcp=true
+            project_name: Template CI
+            description: ""
+          # Quotes, an apostrophe and a backslash in the answers prove they
+          # are escaped wherever they land in Python and TOML.
+          - variant: plain
+            data: --data include_mcp=false
+            project_name: Hugo's "Notes" & \ CI
+            description: A "quoted" description, with an apostrophe's \ backslash
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+      - name: Generate the project
+        env:
+          PROJECT_NAME: ${{ matrix.project_name }}
+          DESCRIPTION: ${{ matrix.description }}
+        run: |
+          git config --global user.email ci@example.com
+          git config --global user.name CI
+          extra=()
+          if [ -n "$DESCRIPTION" ]; then extra+=(--data "description=$DESCRIPTION"); fi
+          uvx copier copy --trust --defaults --vcs-ref HEAD \
+            --data "project_name=$PROJECT_NAME" --data project_slug=template-ci "${extra[@]}" \
+            ${{ matrix.data }} . "$RUNNER_TEMP/app"
+      - name: Install Chromium for Playwright
+        working-directory: ${{ runner.temp }}/app
+        run: uv run --frozen --only-group e2e playwright install --with-deps chromium
+      - name: Run the generated project's checks
+        working-directory: ${{ runner.temp }}/app
+        run: uvx --with tox-uv tox -e fmt,lint,types,checks,test,js,audit,e2e

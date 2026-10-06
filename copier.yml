@@ -1,0 +1,84 @@
+# Copier questions for a new Titan project.
+#
+#   copier copy --trust gh:hugorodgerbrown/django-titan-template my-project
+#   cd my-project && copier update --trust    # later, to pull template fixes
+#
+# --trust is needed because the post-generation tasks run uv and npm to
+# write the two lock files (they depend on the answers, so they are not
+# templated).
+
+_min_copier_version: "9.4"
+_subdirectory: template
+_answers_file: .copier-answers.yml
+_templates_suffix: .jinja
+
+project_name:
+  type: str
+  help: The product name people see (title bar, manifest, home screen)
+  default: My Project
+
+project_slug:
+  type: str
+  help: Python-safe name for the repository and package
+  default: "{{ project_name | lower | replace(' ', '-') | replace('_', '-') }}"
+  validator: >-
+    {% if not (project_slug | regex_search('^[a-z][a-z0-9-]*$')) %}
+    Lowercase letters, digits and hyphens, starting with a letter.
+    {% endif %}
+
+description:
+  type: str
+  help: One line describing the project
+  default: "{{ project_name }}: a Django PWA that works offline"
+
+author_name:
+  type: str
+  default: Hugo Rodger-Brown
+
+author_email:
+  type: str
+  default: hugo@rodger-brown.com
+
+theme_colour:
+  type: str
+  help: Brand colour for the manifest, launch screen and browser chrome (hex)
+  default: "#1d4ed8"
+  validator: >-
+    {% if not (theme_colour | regex_search('^#[0-9a-fA-F]{6}$')) %}
+    A six-digit hex colour, like #1d4ed8.
+    {% endif %}
+
+include_mcp:
+  type: bool
+  help: Serve an MCP endpoint at /mcp, authenticated by mcp-auth (OAuth 2.1)?
+  default: true
+
+mcp_auth_version:
+  type: str
+  help: mcp-auth release tag to pin
+  default: "0.1.0"
+  when: "{{ include_mcp }}"
+
+mcp_can_connect:
+  type: str
+  help: Who may connect an MCP client?
+  # Widening to every account is a product decision; edit apps/mcp/policy.py.
+  choices:
+    Staff only: apps.mcp.policy.staff_only
+    Superusers only: mcp_auth.policy.superuser_only
+  default: apps.mcp.policy.staff_only
+  when: "{{ include_mcp }}"
+
+render_region:
+  type: str
+  help: Render region for the Blueprint
+  choices: [frankfurt, oregon, ohio, virginia, singapore]
+  default: frankfurt
+
+_tasks:
+  - command: [uv, run, --quiet, --no-project, --with, pillow, python, bin/make-icons, "{{ project_name }}", "{{ theme_colour }}"]
+    when: "{{ _copier_operation == 'copy' }}"
+  - command: uv lock --quiet
+  - command: npm install --silent --no-audit --no-fund
+  - command: git init --quiet --initial-branch=main
+    when: "{{ _copier_operation == 'copy' }}"
