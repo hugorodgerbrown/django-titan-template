@@ -1,12 +1,12 @@
 """Fixtures for the Playwright journeys: a live server and a signed-in page."""
 
 import os
+import re
 from typing import Any
+from urllib.parse import urlsplit
 
 import pytest
 from playwright.sync_api import Page
-
-from tests.factories import UserFactory
 
 
 @pytest.fixture(scope="session")
@@ -22,16 +22,28 @@ def browser_type_launch_args(browser_type_launch_args: dict[str, Any]) -> dict[s
 
 
 @pytest.fixture
-def signed_in_page(page: Page, live_server: Any) -> Page:
-    """A page signed in through the real form, controlled by the service worker."""
-    UserFactory.create(username="walker")
-    page.goto(f"{live_server.url}/login/")
-    page.get_by_label("Username").fill("walker")
-    page.get_by_label("Password").fill("password")
-    page.get_by_role("button", name="Sign in").click()
-    page.wait_for_url("**/notes/")
+def signed_in_page(page: Page, live_server: Any, mailoutbox: list[Any], settings: Any) -> Page:
+    """A page signed in by emailed link, controlled by the service worker.
+
+    The server runs in this process, so the email lands in ``mailoutbox``.
+    Passkeys are checked against the live server's origin.
+    """
+    settings.WEBAUTHN_ORIGINS = [live_server.url]
+    page.goto(f"{live_server.url}/signin/")
+    page.get_by_label("Email address").fill("walker@example.com")
+    page.get_by_role("button", name="Email me a link").click()
+    page.wait_for_url("**/signin/code/")
+    link = re.search(r"https?://\S+/signin/link/\S+/", mailoutbox[-1].body)
+    assert link, mailoutbox[-1].body
+    page.goto(live_server.url + urlsplit(link.group()).path)
+    page.get_by_role("button", name="Continue").click()
+    page.wait_for_url("**/app/")
     # The first load installs the worker; it takes control without a reload.
-    page.wait_for_function("navigator.serviceWorker.controller !== null")
+    # (evaluate, not wait_for_function: the page's CSP forbids the eval the latter uses.)
+    page.evaluate(
+        """() => navigator.serviceWorker.controller || new Promise((resolve) =>
+            navigator.serviceWorker.addEventListener("controllerchange", resolve))"""
+    )
     # Load once more through the worker, so this page is cached for offline.
     page.reload()
     return page

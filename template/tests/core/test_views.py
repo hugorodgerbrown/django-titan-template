@@ -11,19 +11,6 @@ def test_healthz_needs_no_sign_in_or_database(client: Client) -> None:
     assert response.content == b"ok"
 
 
-def test_home_sends_signed_out_visitors_to_sign_in(client: Client) -> None:
-    """The home page needs a signed-in user."""
-    response = client.get(reverse("home"))
-    assert response.status_code == 302
-    assert response["Location"].startswith(reverse("login"))
-
-
-def test_home_sends_signed_in_users_to_notes(signed_in: Client) -> None:
-    """The home page is a redirect to the app's start page."""
-    response = signed_in.get(reverse("home"))
-    assert response["Location"] == reverse("notes:list")
-
-
 def test_csrf_failure_is_marked_for_the_outbox(user: object) -> None:
     """A CSRF rejection carries X-CSRF-Failure, so the outbox waits instead of dropping."""
     client = Client(enforce_csrf_checks=True)

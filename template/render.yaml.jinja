@@ -28,8 +28,17 @@ services:
       # Major.minor only, so Render uses its latest prebuilt 3.14.
       - key: PYTHON_VERSION
         value: "3.14"
+      # The SMTP relay that sends sign-in emails. Nobody can sign in without it.
+      - key: EMAIL_HOST
+        sync: false
+      - key: EMAIL_HOST_USER
+        sync: false
+      - key: EMAIL_HOST_PASSWORD
+        sync: false
+      - key: DEFAULT_FROM_EMAIL
+        sync: false
 
-  # Idempotency records live 24 hours; this deletes the expired ones.
+  # Deletes expired idempotency records (24 hours) and sign-in requests (15 minutes).
   - type: cron
     name: {{ project_slug }}-purge
     runtime: python
@@ -37,7 +46,9 @@ services:
     plan: starter
     schedule: "17 3 * * *"
     buildCommand: pip install uv==0.12.22 && uv sync --locked --no-dev
-    startCommand: uv run --no-sync python manage.py purge_idempotency_records --commit
+    startCommand: >-
+      uv run --no-sync python manage.py purge_idempotency_records --commit &&
+      uv run --no-sync python manage.py purge_sign_in_requests --commit
     envVars:
       - key: DATABASE_URL
         sync: false

@@ -8,7 +8,9 @@ const config = {
   prefix: 'app',
   version: 'v2',
   staticUrl: '/static/',
-  neverCache: ['/admin/', '/login/'],
+  scope: '/app/',
+  workerUrl: '/app/sw.js',
+  neverCache: ['/app/private/'],
 };
 const ORIGIN = 'https://example.test';
 const route = (path, method = 'GET', origin = ORIGIN) =>
@@ -24,12 +26,15 @@ const res = ({ headers = {}, ...overrides } = {}) => ({
 describe('route', () => {
   it.each([
     ['/static/css/app.css', 'GET', ORIGIN, 'static'],
-    ['/notes/', 'GET', ORIGIN, 'page'],
-    ['/notes/partials/items/', 'GET', ORIGIN, 'page'],
-    ['/notes/new/', 'POST', ORIGIN, 'bypass'],
+    ['/app/', 'GET', ORIGIN, 'page'],
+    ['/app/partials/items/', 'GET', ORIGIN, 'page'],
+    ['/app/new/', 'POST', ORIGIN, 'bypass'],
+    ['/app/sw.js', 'GET', ORIGIN, 'bypass'],
+    ['/app/private/thing', 'GET', ORIGIN, 'bypass'],
+    ['/', 'GET', ORIGIN, 'bypass'],
+    ['/signin/?next=/app/', 'GET', ORIGIN, 'bypass'],
     ['/admin/', 'GET', ORIGIN, 'bypass'],
-    ['/login/?next=/', 'GET', ORIGIN, 'bypass'],
-    ['/sw.js', 'GET', ORIGIN, 'bypass'],
+    ['/application', 'GET', ORIGIN, 'bypass'],
     ['/x.js', 'GET', 'https://cdn.example', 'bypass'],
   ])('%s %s from %s is %s', (path, method, origin, expected) => {
     expect(route(path, method, origin)).toBe(expected);

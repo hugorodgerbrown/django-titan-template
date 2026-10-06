@@ -1,11 +1,11 @@
 """Views for the PWA shell.
 
 The service worker is built here rather than served as a static file for
-two reasons: it must live at ``/sw.js`` to control the whole origin, and
-it needs the hashed URLs of the files it precaches, which only exist
-after ``collectstatic``. The logic itself is plain static JavaScript
-(``static/js/sw_*.js``); this view writes a few lines of config and
-imports it.
+two reasons: it must live at ``/app/sw.js`` to control ``/app/`` (a worker
+controls only paths under its own), and it needs the hashed URLs of the
+files it precaches, which only exist after ``collectstatic``. The logic
+itself is plain static JavaScript (``static/js/sw_*.js``); this view writes
+a few lines of config and imports it.
 """
 
 import hashlib
@@ -28,12 +28,12 @@ from apps.pwa import conf
 def manifest(request: HttpRequest) -> HttpResponse:
     """Return the web app manifest."""
     data = {
-        "id": "/",
+        "id": conf.SCOPE,
         "name": conf.APP_NAME,
         "short_name": conf.SHORT_NAME,
         "description": conf.DESCRIPTION,
         "start_url": reverse("notes:list"),
-        "scope": "/",
+        "scope": conf.SCOPE,
         "display": "standalone",
         "theme_color": conf.THEME_COLOUR,
         "background_color": conf.BACKGROUND_COLOUR,
@@ -65,6 +65,8 @@ def worker_config() -> dict[str, object]:
         "staticUrl": settings.STATIC_URL
         if settings.STATIC_URL.startswith("/")
         else f"/{settings.STATIC_URL}",
+        "scope": conf.SCOPE,
+        "workerUrl": reverse("pwa:service_worker"),
         "offlineUrl": reverse("pwa:offline"),
         "neverCache": conf.NEVER_CACHE,
         "precache": [static(p) for p in conf.PRECACHE_STATIC],
@@ -83,7 +85,7 @@ def worker_config() -> dict[str, object]:
 
 @require_GET
 def service_worker(request: HttpRequest) -> HttpResponse:
-    """Return /sw.js: the worker's config, then importScripts() of its logic."""
+    """Return /app/sw.js: the worker's config, then importScripts() of its logic."""
     config = worker_config()
     scripts = ", ".join(json.dumps(static(p)) for p in conf.WORKER_SCRIPTS)
     body = (
@@ -95,7 +97,6 @@ def service_worker(request: HttpRequest) -> HttpResponse:
     # Browsers re-check the worker on every navigation; never let an HTTP
     # cache answer for it, or a deploy can take a day to reach a device.
     response["Cache-Control"] = "no-cache"
-    response["Service-Worker-Allowed"] = "/"
     return response
 
 

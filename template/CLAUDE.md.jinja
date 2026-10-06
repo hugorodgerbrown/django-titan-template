@@ -9,17 +9,21 @@ it close to the template so `copier update --trust` stays a clean merge.
 ```
 config/          settings (one module, env-driven), urls, wsgi/asgi
 apps/core/       BaseModel, IdempotencyMiddleware + IdempotencyRecord,
-                 decorators (require_htmx, login_required_json), healthz
-apps/pwa/        manifest, /sw.js, /offline/; conf.py holds the app's
-                 identity and the precache list
-apps/notes/      the example offline-capable feature; replace it
+                 decorators (require_htmx, login_required_json), rate
+                 limits, safe_next, healthz
+apps/accounts/   sign-in by emailed link or code (SignInRequest), passkeys
+                 (Passkey), sign-out, /app/account/ (docs/accounts.md)
+apps/public/     the public pages: /, /terms/, /privacy/ (placeholders)
+apps/pwa/        /app/manifest.webmanifest, /app/sw.js, /app/offline/;
+                 conf.py holds the app's identity, SCOPE and the precache list
+apps/notes/      the example offline-capable feature, at /app/; replace it
 {%- if include_mcp %}
 apps/mcp/        the MCP endpoint (/mcp) and its tools; auth is mcp-auth
 {%- endif %}
-templates/       base.html and shared includes
+templates/       base.html (the app, /app/), public_base.html, includes
 static/js/       plain JavaScript, classic scripts, no build step
 static/css/      app.css: tokens on :root, components below
-docs/            testing, pwa, security, performance, decisions/
+docs/            accounts, testing, pwa, security, performance, decisions/
 ```
 
 ## Commands
@@ -63,6 +67,9 @@ queryset, a factory in `tests/factories.py`, and tests. Use `uuid`, never
 - Style with the tokens in `static/css/app.css`; add a component class
   there rather than one-off values.
 - A page should work without JavaScript; JavaScript makes it better.
+- Signed-in pages live under `/app/` (the installed app's scope) and
+  extend `base.html`; public pages sit outside it and extend
+  `public_base.html`. Read [docs/pwa.md](docs/pwa.md#scope).
 
 ### Writes that must work offline
 
@@ -75,6 +82,12 @@ first. Add any new static file the shell needs offline to
 
 Run with no arguments to do the common thing, read-only unless `--commit`,
 respect `--verbosity`, exit non-zero on failure.
+
+### Accounts
+
+No passwords: email link or code, then passkeys. Read
+[docs/accounts.md](docs/accounts.md) before touching sign-in. Views never
+send mail; they enqueue a task (`apps/accounts/tasks.py`).
 
 ## Tests
 
@@ -96,7 +109,9 @@ choice in `docs/decisions/`.
    `@login_required_json`.
 4. No secrets in source.
 5. Email addresses are lower-cased before storage and lookup.
+6. Sign-in secrets (link tokens, codes) are stored only as hashes and
+   never logged.
 {%- if include_mcp %}
-6. Who may connect an MCP client (`apps/mcp/policy.py`) only widens in a PR
+7. Who may connect an MCP client (`apps/mcp/policy.py`) only widens in a PR
    that says so.
 {%- endif %}

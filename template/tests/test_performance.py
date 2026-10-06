@@ -25,6 +25,6 @@ def test_precached_shell_fits_the_budget() -> None:
 
 
 def test_worker_scripts_exist() -> None:
-    """Every script /sw.js imports is a real static file."""
+    """Every script /app/sw.js imports is a real static file."""
     for path in conf.WORKER_SCRIPTS:
         assert finders.find(path), path

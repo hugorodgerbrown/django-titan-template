@@ -14,7 +14,7 @@ BASE = Path(settings.BASE_DIR)
 @pytest.mark.django_db
 def test_every_page_sends_a_strict_csp(client: Client) -> None:
     """Scripts only from this origin; no 'unsafe-inline' anywhere."""
-    response = client.get(reverse("login"))
+    response = client.get(reverse("accounts:sign_in"))
     csp = response["Content-Security-Policy"]
     assert "script-src 'self'" in csp
     assert "unsafe-inline" not in csp
@@ -25,7 +25,7 @@ def test_every_page_sends_a_strict_csp(client: Client) -> None:
 @pytest.mark.django_db
 def test_clickjacking_and_sniffing_headers(client: Client) -> None:
     """Pages can't be framed and content types aren't sniffed."""
-    response = client.get(reverse("login"))
+    response = client.get(reverse("accounts:sign_in"))
     assert response["X-Frame-Options"] == "DENY"
     assert response["X-Content-Type-Options"] == "nosniff"
     assert response["Referrer-Policy"] == "same-origin"

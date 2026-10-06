@@ -19,7 +19,7 @@ async function enqueueOffline(body = '{"text":"hi"}') {
   // Enqueue triggers a drain; make that first one fail as if offline.
   const offline = vi.fn().mockRejectedValue(new TypeError('offline'));
   vi.stubGlobal('fetch', offline);
-  const row = await Outbox.enqueue({ url: '/notes/new/', body, meta: { text: 'hi' } });
+  const row = await Outbox.enqueue({ url: '/app/new/', body, meta: { text: 'hi' } });
   await Outbox.drain({ fetch: offline });
   return row;
 }
@@ -42,7 +42,7 @@ describe('drain', () => {
     const send = vi.fn().mockResolvedValue(reply(201));
     const result = await Outbox.drain({ fetch: send });
     const [url, init] = send.mock.calls[0];
-    expect(url).toBe('/notes/new/');
+    expect(url).toBe('/app/new/');
     expect(init.headers['Idempotency-Key']).toBe(row.idempotency_key);
     expect(init.headers['X-CSRFToken']).toBe('token-1');
     expect(init.redirect).toBe('manual');

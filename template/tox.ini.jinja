@@ -63,7 +63,7 @@ commands =
 
 # Real browser, real service worker. Small on purpose: see docs/testing.md.
 [testenv:e2e]
-description = Browser journeys (Playwright): install, offline reload, queued write
+description = Browser journeys (Playwright): offline write, offline fallback, passkey
 dependency_groups = e2e
 setenv =
     DJANGO_ALLOW_ASYNC_UNSAFE = true

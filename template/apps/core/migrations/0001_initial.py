@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
     dependencies = []
@@ -34,9 +33,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "body_hash",
-                    models.CharField(
-                        help_text="sha256 of the raw request body.", max_length=64
-                    ),
+                    models.CharField(help_text="sha256 of the raw request body.", max_length=64),
                 ),
                 (
                     "status",

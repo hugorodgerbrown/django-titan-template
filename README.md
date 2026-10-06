@@ -2,7 +2,8 @@
 
 The Titan project template: a Django + plain-JavaScript PWA that installs,
 launches with a loading screen, works offline, and queues writes on the
-device until it can send them. Testing, linting, type checking, security
+device until it can send them. People sign up and sign in with an emailed
+link or code, and add passkeys; there are no passwords. Testing, linting, type checking, security
 scanning, performance budgets and CI come configured, lifted from Tally and
 Snowdesk rather than invented.
 
@@ -37,11 +38,13 @@ difference as a normal merge: review it like any PR.
 | Area | What |
 | --- | --- |
 | Backend | Django 6.1, one env-driven settings module, Postgres via `DATABASE_URL`, WhiteNoise, gunicorn |
-| PWA | Manifest, icons, `/sw.js` (precached shell, network-first pages with a 4 s fallback, offline page), launch screen |
+| PWA | Scoped to `/app/`: manifest, icons, `/app/sw.js` (precached shell, network-first pages with a 4 s fallback, offline page), launch screen |
+| Accounts | Sign-up and sign-in by emailed link or code (single use, hashed, rate-limited), passkeys added from the account page, email sent from a task |
+| Public pages | Placeholder homepage, terms and privacy notice, outside the app's scope |
 | Offline writes | IndexedDB outbox with backoff, Background Sync where available, per-user rows; `IdempotencyMiddleware` so a retried write is applied once |
 | Example | A notes app that proves an offline write end to end |
 | MCP (optional) | `/mcp` JSON-RPC endpoint with two tools, authenticated by mcp-auth, passing its contract suite |
-| Tests | pytest + FactoryBoy (90% floor), Vitest + fake-indexeddb, two capped Playwright journeys |
+| Tests | pytest + FactoryBoy (90% floor), Vitest + fake-indexeddb, three capped Playwright journeys (offline write, offline fallback, passkey) |
 | Lint and types | ruff (format, lint, bandit, docstrings), mypy + django-stubs, pre-commit |
 | Security | Strict CSP (no inline anything), `check --deploy`, semgrep, pip-audit, npm audit, gitleaks, Dependabot |
 | Performance | Precache byte budget, query-count assertions, Lighthouse CI budgets |

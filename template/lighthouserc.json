@@ -1,7 +1,11 @@
 {
   "ci": {
     "collect": {
-      "url": ["http://localhost:8000/login/", "http://localhost:8000/offline/"],
+      "url": [
+        "http://localhost:8000/",
+        "http://localhost:8000/signin/",
+        "http://localhost:8000/app/offline/"
+      ],
       "numberOfRuns": 3,
       "settings": { "preset": "desktop" }
     },

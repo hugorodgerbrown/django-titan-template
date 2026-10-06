@@ -1,7 +1,7 @@
 /*
  * static/js/sw_worker.js — the service worker.
  *
- * /sw.js (apps/pwa/views.py) sets self.SW_CONFIG and importScripts() this
+ * /app/sw.js (apps/pwa/views.py) sets self.SW_CONFIG and importScripts() this
  * after idb.js, outbox_core.js, outbox.js and sw_core.js.
  *
  *   install   precache the shell: static files and the offline page

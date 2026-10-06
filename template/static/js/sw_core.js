@@ -24,7 +24,8 @@
 
   /**
    * How to answer a request.
-   *   'bypass'  let the browser handle it (writes, other origins, never-cache paths)
+   *   'bypass'  let the browser handle it (writes, other origins, the worker itself,
+   *             anything outside the app's scope, never-cache paths)
    *   'static'  cache-first (hashed, immutable file names); network-first in DEBUG
    *   'page'    network-first with a timeout, then the cached copy, then the offline page
    * @param {{method: string}} request
@@ -33,9 +34,12 @@
   function route(request, url, origin, config) {
     if (request.method !== 'GET') return 'bypass';
     if (url.origin !== origin) return 'bypass';
-    if (url.pathname === '/sw.js') return 'bypass';
-    if (config.neverCache.some((prefix) => url.pathname.startsWith(prefix))) return 'bypass';
+    if (url.pathname === config.workerUrl) return 'bypass';
     if (url.pathname.startsWith(config.staticUrl)) return 'static';
+    // Public pages, sign-in, admin, OAuth: a controlled page can still fetch
+    // them, but they are never the app's to cache.
+    if (!url.pathname.startsWith(config.scope)) return 'bypass';
+    if (config.neverCache.some((prefix) => url.pathname.startsWith(prefix))) return 'bypass';
     return 'page';
   }
 

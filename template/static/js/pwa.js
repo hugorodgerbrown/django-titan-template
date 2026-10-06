@@ -11,6 +11,8 @@
  *   3. Send queued writes now, when the connection comes back, when the
  *      app returns to the foreground, and when the worker says to.
  *   4. Keep the offline banner and the header's outbox count current.
+ *   5. Before a sign-out form posts, drop the cached pages and the recorded
+ *      user, so the next person on this device can't open them offline.
  */
 (function () {
   'use strict';
@@ -23,20 +25,25 @@
     return el ? el.content : '';
   }
 
+  async function forgetPages() {
+    if (!self.caches) return;
+    const names = await caches.keys();
+    await Promise.all(names.filter((n) => n.includes('-pages-')).map((n) => caches.delete(n)));
+  }
+
   async function recordPrincipal() {
     const principal = metaContent('app-principal');
     const previous = await db.getMeta('principal');
     await db.setMeta('principal', principal);
     await db.setMeta('csrf', metaContent('csrf-token'));
-    if (previous !== undefined && previous !== principal && self.caches) {
-      const names = await caches.keys();
-      await Promise.all(names.filter((n) => n.includes('-pages-')).map((n) => caches.delete(n)));
-    }
+    if (previous !== undefined && previous !== principal) await forgetPages();
   }
 
   async function registerWorker() {
     if (!('serviceWorker' in navigator)) return;
-    const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+    const registration = await navigator.serviceWorker.register(metaContent('app-worker'), {
+      scope: metaContent('app-scope'),
+    });
     navigator.serviceWorker.addEventListener('message', (event) => {
       if (event.data && event.data.type === 'outbox:changed') {
         document.dispatchEvent(new CustomEvent('outbox:changed', { detail: event.data.detail }));
@@ -75,6 +82,19 @@
   window.addEventListener('offline', renderOnline);
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') outbox.drain();
+  });
+
+  document.addEventListener('submit', (event) => {
+    const form = event.target;
+    if (!(form instanceof HTMLFormElement) || !form.hasAttribute('data-sign-out')) return;
+    if (form.dataset.cleared) return;
+    event.preventDefault();
+    const submit = () => {
+      form.dataset.cleared = '1';
+      form.submit();
+    };
+    // Sign out even if the cleanup fails: the server clears the HTTP cache too.
+    Promise.all([forgetPages(), db.setMeta('principal', '')]).then(submit, submit);
   });
 
   renderOnline();

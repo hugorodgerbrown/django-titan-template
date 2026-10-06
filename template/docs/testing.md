@@ -31,6 +31,11 @@ in the PR; the usual answer is that the assertion belongs in `tests/js`.
   pending, come back online, see it saved (`test_offline_write.py`).
 - **offline fallback**: a page never visited shows the offline page
   (`test_offline_page.py`).
+- **passkey**: add a passkey on the account page, sign out, sign back in
+  with it, against Chromium's virtual authenticator (`test_passkey.py`).
+
+Every journey signs in through the real email flow (`tests/e2e/conftest.py`
+reads the link from `mailoutbox`).
 
 ## Rules
 

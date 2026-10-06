@@ -1,4 +1,4 @@
-"""URLs for the PWA shell. The worker and manifest live at the root for scope."""
+"""URLs for the PWA shell, mounted at /app/ so the worker's scope is the app alone."""
 
 from django.urls import path
 

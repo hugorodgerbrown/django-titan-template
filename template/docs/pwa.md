@@ -3,15 +3,15 @@
 ```
  page ──write──▶ Outbox (IndexedDB) ──drain──▶ POST + Idempotency-Key + CSRF ──▶ IdempotencyMiddleware ──▶ view
    │                ▲  online / load / visible / Background Sync                   same key = stored reply
-   └──GET──▶ service worker ──▶ Cache Storage (static: cache-first, pages: network-first) ──▶ /offline/
+   └──GET──▶ service worker ──▶ Cache Storage (static: cache-first, pages: network-first) ──▶ /app/offline/
 ```
 
 ## Pieces
 
 | File | Job |
 | --- | --- |
-| `apps/pwa/views.py` | `/manifest.webmanifest`, `/sw.js` (config + `importScripts`), `/offline/` |
-| `apps/pwa/conf.py` | Name, colours, the precache list, paths never cached |
+| `apps/pwa/views.py` | `/app/manifest.webmanifest`, `/app/sw.js` (config + `importScripts`), `/app/offline/` |
+| `apps/pwa/conf.py` | Name, colours, `SCOPE`, the precache list, paths never cached |
 | `static/js/sw_worker.js` | The worker: install, activate, fetch, sync, message |
 | `static/js/sw_core.js` | Its decisions as pure functions (unit-tested) |
 | `static/js/idb.js` | The IndexedDB database: `outbox` and `meta` stores |
@@ -56,16 +56,27 @@ back in.
   network-first under `DEBUG`.
 - **Pages and htmx fragments**: network-first; after 4 s a cached copy wins
   (a dead connection usually hangs rather than failing). With no cached
-  copy, a navigation gets `/offline/`.
-- **Never cached**: `apps/pwa/conf.py: NEVER_CACHE` (sign-in, admin, OAuth,
-  MCP), anything non-GET, other origins, `no-store` responses, redirects.
+  copy, a navigation gets `/app/offline/`.
+- **Never cached**: anything outside `SCOPE` (`/app/`) except static
+  files, so public pages, sign-in, admin, OAuth and MCP; anything in
+  `NEVER_CACHE`; anything non-GET; other origins; `no-store` responses;
+  redirects.
 - **Versions**: cache names carry a hash of the worker's config (and of the
   files themselves under `DEBUG`). A deploy that changes any precached
   file installs a new worker, which takes over at once and deletes the old
   caches. Pages cached by the old version are dropped too; they are cached
   again as they are visited.
 - **Changing user** clears cached pages (`pwa.js`), because they show the
-  previous user's data.
+  previous user's data. Signing out clears them before the form posts.
+
+## Scope
+
+The installed app is `/app/` and nothing else: the manifest's `scope`,
+`start_url` and `id`, and the worker at `/app/sw.js`, which controls only
+paths under its own. Public pages extend `public_base.html` and load no
+worker or outbox. Why: [decisions/the-installed-app-is-scoped-to-app.md](decisions/the-installed-app-is-scoped-to-app.md).
+A new signed-in page belongs under `/app/` and extends `base.html`; a new
+public page sits outside it and extends `public_base.html`.
 
 ## Launch screen
 

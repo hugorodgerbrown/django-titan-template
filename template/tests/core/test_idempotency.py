@@ -6,13 +6,14 @@ from typing import Any
 import pytest
 from django.http import HttpResponse
 from django.test import Client, RequestFactory
+from django.urls import reverse
 
 from apps.core.idempotency import IdempotencyMiddleware
 from apps.core.models import IdempotencyRecord
 from apps.notes.models import Note
 from tests.factories import UserFactory
 
-URL = "/notes/new/"
+URL = reverse("notes:create")
 
 
 def post(client: Client, body: dict[str, Any], key: str | None = "key-1") -> Any:
@@ -114,5 +115,5 @@ def test_exception_releases_the_key(rf: RequestFactory) -> None:
 
 def test_get_is_never_recorded(signed_in: Client) -> None:
     """Reads pass straight through, key or not."""
-    signed_in.get("/notes/", headers={"Idempotency-Key": "k"})
+    signed_in.get(reverse("notes:list"), headers={"Idempotency-Key": "k"})
     assert not IdempotencyRecord.objects.exists()

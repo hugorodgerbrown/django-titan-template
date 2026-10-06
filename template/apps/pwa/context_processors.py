@@ -11,6 +11,8 @@ def pwa(request: HttpRequest) -> dict[str, dict[str, str]]:
     return {
         "pwa": {
             "name": conf.APP_NAME,
+            "description": conf.DESCRIPTION,
+            "scope": conf.SCOPE,
             "theme_colour": conf.THEME_COLOUR,
             "background_colour": conf.BACKGROUND_COLOUR,
             "version": settings.APP_VERSION,
