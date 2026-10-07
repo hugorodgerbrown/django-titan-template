@@ -9,7 +9,7 @@ from apps.notes.models import Note
 
 
 def test_note_written_offline_is_saved_when_back_online(signed_in_page: Page) -> None:
-    """The whole outbox path: offline page load, queued write, drain on reconnect."""
+    """The whole outbox path: offline page load, queued write, drain on reconnect, re-cache."""
     page = signed_in_page
     page.context.set_offline(True)
     page.reload()
@@ -20,9 +20,20 @@ def test_note_written_offline_is_saved_when_back_online(signed_in_page: Page) ->
     page.get_by_role("button", name="Add note").click()
     expect(page.locator(".note--pending")).to_contain_text("Written on the hill")
     expect(page.locator("[data-outbox-status]")).to_have_text("1 waiting to send")
+    expect(page.locator(".note--empty")).to_be_hidden()
     assert not Note.objects.exists()
 
     page.context.set_offline(False)
     expect(page.locator("#note-items")).to_contain_text("Written on the hill")
     expect(page.locator(".note--pending")).to_have_count(0)
     assert Note.objects.get().text == "Written on the hill"
+
+    # The cached page is refreshed once the note is sent, so it opens offline with it.
+    page.evaluate(
+        """async (text) => { while (!(await (await caches.match(location.pathname))?.text())?.includes(text))
+            await new Promise((resolve) => setTimeout(resolve, 100)); }""",
+        "Written on the hill",
+    )
+    page.context.set_offline(True)
+    page.reload()
+    expect(page.locator("#note-items")).to_contain_text("Written on the hill")

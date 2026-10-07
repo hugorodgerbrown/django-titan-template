@@ -7,7 +7,8 @@
  *      different account), drop the cached pages: they show the last
  *      user's data.
  *   2. Register the service worker, and ask it to cache this page so it
- *      opens offline next time.
+ *      opens offline next time (and again after queued writes are sent,
+ *      since they change it).
  *   3. Send queued writes now, when the connection comes back, when the
  *      app returns to the foreground, and when the worker says to.
  *   4. Keep the offline banner and the header's outbox count current.
@@ -71,8 +72,14 @@
 
   document.addEventListener('outbox:changed', (event) => {
     renderOutbox(event.detail);
-    // htmx listens for this to refresh whatever the sent writes changed.
-    if (event.detail.sent > 0) document.body.dispatchEvent(new CustomEvent('outbox:sent'));
+    if (event.detail.sent > 0) {
+      // htmx listens for this to refresh whatever the sent writes changed.
+      document.body.dispatchEvent(new CustomEvent('outbox:sent'));
+      // The cached copy of this page predates those writes; refresh it so
+      // the page opened offline next shows them.
+      const worker = navigator.serviceWorker && navigator.serviceWorker.controller;
+      if (worker) worker.postMessage({ type: 'cache-page', url: location.pathname + location.search });
+    }
   });
 
   window.addEventListener('online', () => {
