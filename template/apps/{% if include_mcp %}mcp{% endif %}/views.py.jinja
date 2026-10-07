@@ -16,7 +16,7 @@ from typing import Any
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from mcp_auth.resource import mcp_endpoint
 
-from apps.mcp.resources import RESOURCES, ResourceNotFound, read_resource
+from apps.mcp.resources import MIME_TYPE, RESOURCES, ResourceNotFound, read_resource
 from apps.mcp.tools import TOOLS, ToolError
 from apps.pwa.conf import APP_NAME
 
@@ -95,6 +95,8 @@ def _dispatch(user: Any, method: str, params: Any) -> dict[str, Any]:
                 "capabilities": {
                     "tools": {"listChanged": False},
                     "resources": {"listChanged": False},
+                    # MCP Apps is an extension; both sides say so (SEP-1724).
+                    "extensions": {"io.modelcontextprotocol/ui": {"mimeTypes": [MIME_TYPE]}},
                 },
                 "serverInfo": SERVER_INFO,
                 "instructions": INSTRUCTIONS,

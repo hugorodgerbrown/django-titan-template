@@ -56,8 +56,10 @@ def test_add_then_list_notes(rpc: Any, user: Any) -> None:
 
 
 def test_initialize_advertises_resources(rpc: Any) -> None:
-    """The server says it has resources, so the client will read a tool's UI."""
-    assert "resources" in rpc("initialize")["capabilities"]
+    """The server says it has resources and MCP Apps, so the client renders a tool's UI."""
+    capabilities = rpc("initialize")["capabilities"]
+    assert "resources" in capabilities
+    assert capabilities["extensions"]["io.modelcontextprotocol/ui"] == {"mimeTypes": [MIME_TYPE]}
 
 
 def test_resources_list_every_view(rpc: Any) -> None:
