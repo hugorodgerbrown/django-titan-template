@@ -10,6 +10,7 @@ from typing import Any
 
 from apps.notes.forms import NoteForm
 from apps.notes.models import Note
+from apps.public.pages import page_as_markdown
 
 
 class ToolError(Exception):
@@ -25,6 +26,9 @@ class Tool:
     input_schema: dict[str, Any]
     func: Callable[[Any, dict[str, Any]], dict[str, Any]]
     read_only: bool = True
+    # The result's "markdown" is the text content, so the caller gets the
+    # document itself rather than JSON around it.
+    markdown: bool = False
 
     def describe(self) -> dict[str, Any]:
         """Return the tool as tools/list lists it."""
@@ -61,6 +65,23 @@ def add_note(user: Any, args: dict[str, Any]) -> dict[str, Any]:
     return {"uuid": str(note.uuid), "text": note.text, "written_at": note.written_at.isoformat()}
 
 
+def privacy_policy(user: Any, args: dict[str, Any]) -> dict[str, str]:
+    """Return the privacy notice: what is kept about the user, and why."""
+    return page_as_markdown("privacy")
+
+
+def terms_of_service(user: Any, args: dict[str, Any]) -> dict[str, str]:
+    """Return the terms of service."""
+    return page_as_markdown("terms")
+
+
+def help_page(user: Any, args: dict[str, Any]) -> dict[str, str]:
+    """Return the help: signing in, passkeys, installing, offline use."""
+    return page_as_markdown("help")
+
+
+NO_ARGUMENTS: dict[str, Any] = {"type": "object", "properties": {}}
+
 TOOLS: dict[str, Tool] = {
     t.name: t
     for t in [
@@ -83,6 +104,32 @@ TOOLS: dict[str, Tool] = {
             },
             func=add_note,
             read_only=False,
+        ),
+        Tool(
+            name="privacy_policy",
+            description=(
+                "The privacy notice: what is kept about the user, why, and for how long. "
+                "Use it for any question about privacy or personal data."
+            ),
+            input_schema=NO_ARGUMENTS,
+            func=privacy_policy,
+            markdown=True,
+        ),
+        Tool(
+            name="terms_of_service",
+            description="The terms of service for using the app.",
+            input_schema=NO_ARGUMENTS,
+            func=terms_of_service,
+            markdown=True,
+        ),
+        Tool(
+            name="help",
+            description=(
+                "How to use the app: signing in, passkeys, installing it and using it offline."
+            ),
+            input_schema=NO_ARGUMENTS,
+            func=help_page,
+            markdown=True,
         ),
     ]
 }

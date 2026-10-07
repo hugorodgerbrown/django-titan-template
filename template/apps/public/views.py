@@ -25,3 +25,9 @@ def terms(request: HttpRequest) -> HttpResponse:
 def privacy(request: HttpRequest) -> HttpResponse:
     """The privacy notice (placeholder, but true of the template as shipped)."""
     return render(request, "public/privacy.html")
+
+
+@require_GET
+def help_page(request: HttpRequest) -> HttpResponse:
+    """Help: signing in, passkeys, installing the app, offline (placeholder)."""
+    return render(request, "public/help.html")

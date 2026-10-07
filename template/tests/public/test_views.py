@@ -1,4 +1,4 @@
-"""Tests for apps.public.views: the homepage, terms and privacy."""
+"""Tests for apps.public.views: the homepage, terms, privacy and help."""
 
 import pytest
 from django.test import Client
@@ -7,7 +7,10 @@ from django.urls import reverse
 pytestmark = pytest.mark.django_db
 
 
-@pytest.mark.parametrize("name", ["public:home", "public:terms", "public:privacy"])
+PAGES = ["public:home", "public:terms", "public:privacy", "public:help"]
+
+
+@pytest.mark.parametrize("name", PAGES)
 def test_public_pages_need_no_sign_in(client: Client, name: str) -> None:
     """Anyone can read them, and they link to each other."""
     response = client.get(reverse(name))
@@ -15,9 +18,10 @@ def test_public_pages_need_no_sign_in(client: Client, name: str) -> None:
     content = response.content.decode()
     assert reverse("public:terms") in content
     assert reverse("public:privacy") in content
+    assert reverse("public:help") in content
 
 
-@pytest.mark.parametrize("name", ["public:home", "public:terms", "public:privacy"])
+@pytest.mark.parametrize("name", PAGES)
 def test_public_pages_are_outside_the_app(client: Client, name: str) -> None:
     """No manifest, worker or outbox: the installed app is /app/ alone."""
     content = client.get(reverse(name)).content.decode()
