@@ -162,6 +162,8 @@ input[type="text"], input[type="email"], input[type="password"], textarea {
 .note--failed .note__meta { color: var(--error); }
 .note__actions { display: flex; gap: 8px; margin-top: 8px; }
 .note--empty { color: var(--text-2); }
+/* A note waiting to send means the list isn't empty, whatever the server last said. */
+[data-pending-notes]:not(:empty) ~ #note-items .note--empty { display: none; }
 
 /* Offline and outbox state */
 

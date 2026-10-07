@@ -14,7 +14,7 @@
  * Updates apply at once (skipWaiting + claim): static files have hashed
  * names, so an old page never asks for a file the new caches lack.
  */
-/* global SW_CONFIG, SwCore, Outbox, OutboxCore */
+/* global SW_CONFIG, SwCore, Outbox, OutboxCore, AppDB */
 'use strict';
 
 const config = self.SW_CONFIG;
@@ -105,18 +105,29 @@ self.addEventListener('sync', (event) => {
   );
 });
 
+// Fetch a page into the pages cache for whoever is signed in now. A
+// sign-out can start while the fetch is in flight: pwa.js clears the
+// recorded principal and then the cached pages, so a copy stored after
+// that is taken out again rather than left for the next person offline.
+async function cachePage(url) {
+  const before = await AppDB.getMeta('principal');
+  if (before === '') return; // signed out, or signing out
+  const response = await fetch(url, { credentials: 'same-origin' });
+  if (!SwCore.isStorable(response)) return;
+  const cache = await caches.open(names.pages);
+  await cache.put(url, response);
+  const after = await AppDB.getMeta('principal');
+  if (after === '' || (before !== undefined && after !== before)) {
+    await (await caches.open(names.pages)).delete(url);
+  }
+}
+
 self.addEventListener('message', (event) => {
   const data = event.data || {};
   if (data.type === 'cache-page' && typeof data.url === 'string') {
     const url = new URL(data.url, self.location.origin);
     if (SwCore.route({ method: 'GET' }, url, self.location.origin, config) !== 'page') return;
-    event.waitUntil(
-      caches.open(names.pages).then((cache) =>
-        fetch(url, { credentials: 'same-origin' }).then((response) =>
-          SwCore.isStorable(response) ? cache.put(url, response) : undefined
-        )
-      ).catch(() => undefined)
-    );
+    event.waitUntil(cachePage(url).catch(() => undefined));
   } else if (data.type === 'drain') {
     event.waitUntil(Outbox.drain());
   }

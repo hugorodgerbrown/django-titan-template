@@ -16,8 +16,9 @@ services:
     # Runs before each deploy goes live; a failed migration stops the deploy.
     preDeployCommand: uv run --no-sync python manage.py migrate --noinput
     startCommand: uv run --no-sync gunicorn config.wsgi --bind 0.0.0.0:$PORT --access-logfile -
-    # Answers 200 without a sign-in or a database query.
-    healthCheckPath: /healthz
+    # Answers 200 while the process is up; no sign-in, no database query.
+    # (/healthz also reads the database, for uptime monitors.)
+    healthCheckPath: /livez
     envVars:
       - key: DATABASE_URL
         sync: false
