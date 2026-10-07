@@ -37,6 +37,10 @@ is <http://localhost:8000/app/>; the admin is `/admin/` (signed in by email
 too, as the superuser above). Service workers run on `localhost` and
 HTTPS only; to try offline on a phone, deploy (or tunnel) over HTTPS.
 
+In Claude Code, `.claude/launch.json` starts the dev server on
+<http://localhost:8010/> (clear of other projects on 8000){% if include_mcp %} and the
+MCP Inspector{% endif %}.
+
 ## Checks
 
 ```bash
@@ -89,4 +93,9 @@ TOKEN=$(uv run python manage.py mint_mcp_token --commit -v 0)
 curl -s -X POST http://localhost:8000/mcp -H "Authorization: Bearer $TOKEN" \
   -H 'Content-Type: application/json' -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
 ```
+
+To browse the tools in the MCP Inspector (`npx @modelcontextprotocol/inspector`,
+or its `.claude/launch.json` entry) against the server on 8010, mint the token
+with `--resource http://localhost:8010/mcp`, then connect over Streamable HTTP
+to `http://localhost:8010/mcp` with it as the Bearer token.
 {%- endif %}
