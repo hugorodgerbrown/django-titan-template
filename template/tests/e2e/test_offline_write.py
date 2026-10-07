@@ -7,6 +7,16 @@ from playwright.sync_api import Page, expect
 
 from apps.notes.models import Note
 
+# Resolves once the cached copy of this page contains the text, or after 5s.
+# (evaluate, not wait_for_function: the page's CSP forbids the eval the latter uses.)
+WAIT_FOR_CACHED_TEXT = """async (text) => {
+    for (let tries = 0; tries < 50; tries += 1) {
+        const cached = await caches.match(location.pathname);
+        if (cached && (await cached.text()).includes(text)) return;
+        await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+}"""
+
 
 def test_note_written_offline_is_saved_when_back_online(signed_in_page: Page) -> None:
     """The whole outbox path: offline page load, queued write, drain on reconnect, re-cache."""
@@ -29,11 +39,7 @@ def test_note_written_offline_is_saved_when_back_online(signed_in_page: Page) ->
     assert Note.objects.get().text == "Written on the hill"
 
     # The cached page is refreshed once the note is sent, so it opens offline with it.
-    page.evaluate(
-        """async (text) => { while (!(await (await caches.match(location.pathname))?.text())?.includes(text))
-            await new Promise((resolve) => setTimeout(resolve, 100)); }""",
-        "Written on the hill",
-    )
+    page.evaluate(WAIT_FOR_CACHED_TEXT, "Written on the hill")
     page.context.set_offline(True)
     page.reload()
     expect(page.locator("#note-items")).to_contain_text("Written on the hill")
