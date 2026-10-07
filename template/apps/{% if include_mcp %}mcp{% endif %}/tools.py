@@ -29,15 +29,23 @@ class Tool:
     # The result's "markdown" is the text content, so the caller gets the
     # document itself rather than JSON around it.
     markdown: bool = False
+    # A ui:// resource in apps/mcp/resources.py that the client renders with
+    # the result (an MCP App). The text content still goes to the model.
+    ui: str | None = None
 
     def describe(self) -> dict[str, Any]:
         """Return the tool as tools/list lists it."""
-        return {
+        described: dict[str, Any] = {
             "name": self.name,
             "description": self.description,
             "inputSchema": self.input_schema,
             "annotations": {"readOnlyHint": self.read_only},
         }
+        if self.ui:
+            # "ui/resourceUri" is the spec's older flat key, kept until every
+            # client reads the nested one.
+            described["_meta"] = {"ui": {"resourceUri": self.ui}, "ui/resourceUri": self.ui}
+        return described
 
 
 def list_notes(user: Any, args: dict[str, Any]) -> dict[str, Any]:
@@ -93,6 +101,7 @@ TOOLS: dict[str, Tool] = {
                 "properties": {"limit": {"type": "integer", "minimum": 1, "maximum": 100}},
             },
             func=list_notes,
+            ui="ui://notes/list",
         ),
         Tool(
             name="add_note",

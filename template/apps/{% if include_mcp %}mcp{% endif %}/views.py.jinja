@@ -3,6 +3,8 @@
 Stateless and synchronous: every request is a POST answered with one JSON
 body, so it runs under gunicorn's sync workers like the rest of the site.
 There is no server-to-client stream; GET answers 405 as the spec allows.
+Tools may name a ui:// resource (apps/mcp/resources.py) that the client
+renders with their result: an MCP App.
 Authentication is mcp_auth's ``@mcp_endpoint``: a bearer token bound to
 this URL, or a 401 that starts OAuth discovery.
 """
@@ -14,6 +16,7 @@ from typing import Any
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from mcp_auth.resource import mcp_endpoint
 
+from apps.mcp.resources import RESOURCES, ResourceNotFound, read_resource
 from apps.mcp.tools import TOOLS, ToolError
 from apps.pwa.conf import APP_NAME
 
@@ -31,6 +34,7 @@ PARSE_ERROR = -32700
 INVALID_REQUEST = -32600
 METHOD_NOT_FOUND = -32601
 INVALID_PARAMS = -32602
+RESOURCE_NOT_FOUND = -32002
 
 
 class RpcError(Exception):
@@ -88,7 +92,10 @@ def _dispatch(user: Any, method: str, params: Any) -> dict[str, Any]:
                 "protocolVersion": requested
                 if requested in SUPPORTED_VERSIONS
                 else SUPPORTED_VERSIONS[0],
-                "capabilities": {"tools": {"listChanged": False}},
+                "capabilities": {
+                    "tools": {"listChanged": False},
+                    "resources": {"listChanged": False},
+                },
                 "serverInfo": SERVER_INFO,
                 "instructions": INSTRUCTIONS,
             }
@@ -98,8 +105,25 @@ def _dispatch(user: Any, method: str, params: Any) -> dict[str, Any]:
             return {"tools": [t.describe() for t in TOOLS.values()]}
         case "tools/call":
             return _call_tool(user, params)
+        case "resources/list":
+            return {"resources": [r.describe() for r in RESOURCES.values()]}
+        case "resources/templates/list":
+            return {"resourceTemplates": []}
+        case "resources/read":
+            return _read_resource(params)
         case _:
             raise RpcError(METHOD_NOT_FOUND, f"Method not found: {method}")
+
+
+def _read_resource(params: dict[str, Any]) -> dict[str, Any]:
+    """Return one ui:// resource; the same for every user, as it holds no data."""
+    uri = params.get("uri")
+    if not isinstance(uri, str):
+        raise RpcError(INVALID_PARAMS, "uri must be a string")
+    try:
+        return read_resource(uri)
+    except ResourceNotFound:
+        raise RpcError(RESOURCE_NOT_FOUND, f"Resource not found: {uri}") from None
 
 
 def _call_tool(user: Any, params: dict[str, Any]) -> dict[str, Any]:
