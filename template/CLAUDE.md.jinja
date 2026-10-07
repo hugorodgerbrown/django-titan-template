@@ -10,7 +10,7 @@ it close to the template so `copier update --trust` stays a clean merge.
 config/          settings (one module, env-driven), urls, wsgi/asgi
 apps/core/       BaseModel, IdempotencyMiddleware + IdempotencyRecord,
                  decorators (require_htmx, login_required_json), rate
-                 limits, safe_next, healthz
+                 limits, safe_next, livez and healthz
 apps/accounts/   sign-in by emailed link or code (SignInRequest), passkeys
                  (Passkey), sign-out, /app/account/ (docs/accounts.md)
 apps/public/     the public pages: /, /terms/, /privacy/, /help/ (placeholders);

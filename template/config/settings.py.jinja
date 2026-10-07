@@ -47,12 +47,12 @@ SITE_URL: str = config(
 APP_VERSION: str = config("RENDER_GIT_COMMIT", default="dev")[:12]
 
 # Render terminates TLS and forwards plain HTTP with X-Forwarded-Proto set.
-# Its health check calls /healthz over plain HTTP, so that path is exempt.
+# Its health check calls /livez over plain HTTP, so the health checks are exempt.
 if not DEBUG:
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
     # Off only for a local production-mode run (the Lighthouse CI job).
     SECURE_SSL_REDIRECT = config("DJANGO_SSL_REDIRECT", default=True, cast=bool)
-    SECURE_REDIRECT_EXEMPT = [r"^healthz$"]
+    SECURE_REDIRECT_EXEMPT = [r"^livez$", r"^healthz$"]
     SECURE_HSTS_SECONDS = 60 * 60 * 24 * 365
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SESSION_COOKIE_SECURE = True

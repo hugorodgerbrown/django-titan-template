@@ -74,7 +74,8 @@ Also: [security](docs/security.md), [performance](docs/performance.md),
 4. On a custom domain, set `SITE_URL` (links in emails, and the passkey
    origin) and add the host to `DJANGO_ALLOWED_HOSTS`.
 5. The build runs `collectstatic`; each deploy runs `migrate` first;
-   `/healthz` is the health check.
+   `/livez` is Render's health check (the process is up); `/healthz`
+   also reads the database, for an uptime monitor.
 {%- if include_mcp %}
 
 ## Connect Claude
