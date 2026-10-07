@@ -43,7 +43,7 @@ difference as a normal merge: review it like any PR.
 | Public pages | Placeholder homepage, terms and privacy notice, outside the app's scope |
 | Offline writes | IndexedDB outbox with backoff, Background Sync where available, per-user rows; `IdempotencyMiddleware` so a retried write is applied once |
 | Example | A notes app that proves an offline write end to end |
-| MCP (optional) | `/mcp` JSON-RPC endpoint with notes tools, plus the privacy notice, terms and help as Markdown, authenticated by mcp-auth, passing its contract suite |
+| MCP (optional) | `/mcp` JSON-RPC endpoint with notes tools, plus the privacy notice, terms and help as Markdown, and an MCP App (`list_notes` drawn as a card in Claude), authenticated by mcp-auth, passing its contract suite |
 | Tests | pytest + FactoryBoy (90% floor), Vitest + fake-indexeddb, three capped Playwright journeys (offline write, offline fallback, passkey) |
 | Lint and types | ruff (format, lint, bandit, docstrings), mypy + django-stubs, pre-commit |
 | Security | Strict CSP (no inline anything), `check --deploy`, semgrep, pip-audit, npm audit, gitleaks, Dependabot |

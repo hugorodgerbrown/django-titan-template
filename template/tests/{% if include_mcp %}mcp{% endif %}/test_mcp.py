@@ -1,12 +1,14 @@
 """Tests for the MCP endpoint: the shared auth contract, then the tools."""
 
 import json
+import re
 from typing import Any
 
 import pytest
 from django.test import Client
 from mcp_auth.testing import MCPAuthContract
 
+from apps.mcp.resources import MIME_TYPE, RESOURCES
 from apps.mcp.tools import TOOLS, ToolError, add_note, list_notes
 from apps.notes.models import Note
 from tests.factories import NoteFactory, UserFactory
@@ -51,6 +53,83 @@ def test_add_then_list_notes(rpc: Any, user: Any) -> None:
     result = rpc("tools/call", {"name": "list_notes", "arguments": {}})
     assert result["structuredContent"]["notes"][0]["text"] == "from Claude"
     assert Note.objects.get().owner == user
+
+
+def test_initialize_advertises_resources(rpc: Any) -> None:
+    """The server says it has resources and MCP Apps, so the client renders a tool's UI."""
+    capabilities = rpc("initialize")["capabilities"]
+    assert "resources" in capabilities
+    assert capabilities["extensions"]["io.modelcontextprotocol/ui"] == {"mimeTypes": [MIME_TYPE]}
+
+
+def test_resources_list_every_view(rpc: Any) -> None:
+    """resources/list lists every ui:// view as an MCP App."""
+    listed = rpc("resources/list")["resources"]
+    assert {r["uri"] for r in listed} == set(RESOURCES)
+    assert all(r["uri"].startswith("ui://") and r["mimeType"] == MIME_TYPE for r in listed)
+    assert rpc("resources/templates/list") == {"resourceTemplates": []}
+
+
+@pytest.mark.parametrize("tool", [t for t in TOOLS.values() if t.ui], ids=lambda t: t.name)
+def test_a_tool_ui_names_a_listed_resource(rpc: Any, tool: Any) -> None:
+    """A tool's _meta points at a resource the server serves, in both key forms."""
+    described = next(t for t in rpc("tools/list")["tools"] if t["name"] == tool.name)
+    assert described["_meta"]["ui"]["resourceUri"] in RESOURCES
+    assert described["_meta"]["ui/resourceUri"] == described["_meta"]["ui"]["resourceUri"]
+
+
+@pytest.mark.parametrize("uri", list(RESOURCES))
+def test_a_view_is_one_self_contained_document(rpc: Any, uri: str) -> None:
+    """The HTML loads nothing from anywhere: its scripts and styles are inline."""
+    (content,) = rpc("resources/read", {"uri": uri})["contents"]
+    assert content["uri"] == uri
+    assert content["mimeType"] == MIME_TYPE
+    assert "prefersBorder" in content["_meta"]["ui"]
+    html = content["text"]
+    assert html.startswith("<!doctype html>")
+    assert "McpApp" in html
+    assert not re.search(r"<(script|img|iframe)[^>]*\ssrc=|<link\b", html)
+    assert html.count("</script>") == html.count("<script>")
+
+
+def test_tools_without_ui_have_no_meta(rpc: Any) -> None:
+    """A plain tool describes itself as before."""
+    described = next(t for t in rpc("tools/list")["tools"] if t["name"] == "add_note")
+    assert "_meta" not in described
+
+
+@pytest.mark.parametrize(
+    ("params", "code"),
+    [({"uri": "ui://nope"}, -32002), ({}, -32602)],
+)
+def test_resources_read_errors(rpc: Any, params: dict[str, Any], code: int) -> None:
+    """An unknown URI is 'resource not found'; a missing one is invalid params."""
+    from apps.mcp.views import RpcError
+
+    with pytest.raises(RpcError) as caught:
+        rpc("resources/read", params)
+    assert caught.value.code == code
+
+
+def test_inlined_scripts_cannot_close_their_tag(tmp_path: Any, monkeypatch: Any) -> None:
+    """A "</script>" inside a view's JavaScript is escaped, not left to end the tag."""
+    from apps.mcp import resources
+
+    (tmp_path / "v.html").write_text("<body></body>")
+    (tmp_path / "v.js").write_text("const s = '</script>';")
+    monkeypatch.setattr(resources, "UI_DIR", tmp_path)
+    html = resources.render.__wrapped__("v.html", ("v.js",))
+    assert html == "<body><script>\nconst s = '<\\/script>';</script>\n</body>"
+
+
+def test_a_view_needs_a_body(tmp_path: Any, monkeypatch: Any) -> None:
+    """HTML with nowhere to put the scripts is a mistake, caught at once."""
+    from apps.mcp import resources
+
+    (tmp_path / "v.html").write_text("<p>no body</p>")
+    monkeypatch.setattr(resources, "UI_DIR", tmp_path)
+    with pytest.raises(ValueError, match="no </body>"):
+        resources.render.__wrapped__("v.html", ())
 
 
 @pytest.mark.parametrize(
@@ -115,6 +194,11 @@ def call_endpoint(client: Client, body: Any, headers: dict[str, str] | None = No
             },
             200,
             -32602,
+        ),
+        (
+            {"jsonrpc": "2.0", "id": 1, "method": "resources/read", "params": {"uri": "ui://x"}},
+            200,
+            -32002,
         ),
     ],
 )

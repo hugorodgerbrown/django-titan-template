@@ -21,7 +21,9 @@ apps/notes/      the example offline-capable feature, at /app/; replace it
 {%- if include_mcp %}
 apps/mcp/        the MCP endpoint (/mcp) and its tools; auth is mcp-auth.
                  privacy_policy, terms_of_service and help return the
-                 public pages as Markdown (apps/public/pages.py)
+                 public pages as Markdown (apps/public/pages.py);
+                 resources.py + ui/ hold MCP App views (ui:// HTML a
+                 tool names with Tool(ui=...), docs/decisions/)
 {%- endif %}
 templates/       base.html (the app, /app/), public_base.html, includes
 static/js/       plain JavaScript, classic scripts, no build step
