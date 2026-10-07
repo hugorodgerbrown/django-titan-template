@@ -79,6 +79,9 @@ _tasks:
   - command: [uv, run, --quiet, --no-project, --with, pillow, python, bin/make-icons, "{{ project_name }}", "{{ theme_colour }}"]
     when: "{{ _copier_operation == 'copy' }}"
   - command: uv lock --quiet
-  - command: npm install --silent --no-audit --no-fund
+  # npm installs the JS test tooling only; the app runs without it.
+  - command: >-
+      if command -v npm >/dev/null; then npm install --silent --no-audit --no-fund;
+      else echo "npm not found: skipped. Install Node, then run npm install for the JS tests."; fi
   - command: git init --quiet --initial-branch=main
     when: "{{ _copier_operation == 'copy' }}"
