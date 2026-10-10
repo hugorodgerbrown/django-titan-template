@@ -12,7 +12,15 @@ they see. Every word they read is time not spent testing.
 
 The repo's `docs/user-testing.md` is the template's generic script. The
 Linear doc is the app's own: start from the repo script, then add the
-app's core job and its AI connector prompts.
+app's core job and, if it serves `/mcp`, its AI connector prompts.
+
+## Needs
+
+The Linear MCP server, to read and publish docs: the Linear connector in
+Claude, or in Claude Code
+`claude mcp add --transport http linear-server https://mcp.linear.app/mcp`
+then `/mcp` to sign in. Without it, say so and give the draft as Markdown
+instead of publishing.
 
 ## The length setting
 
@@ -25,13 +33,13 @@ The user names a level. If they don't, use the default and say so.
 | full | 1,800 | all | 45 min+ | ~1,750, 13 scenarios |
 
 - **brief**: the happy path only. Sign up, the core job (build, run),
-  offline, the AI connector, sign out. Merge small scenarios. Each
-  scenario has at most five steps and one or two sentences of "You
-  should see".
+  offline, the AI connector (only if the app serves `/mcp`), sign out.
+  Merge small scenarios. Each scenario has at most five steps and one or
+  two sentences of "You should see".
 - **standard**: adds the common mistakes (wrong code, expired link,
   signing up twice), passkeys, and the log's edge cases.
 - **full**: every path the product handles, including a table of
-  prompts for the AI connector.
+  prompts for the AI connector when there is one.
 
 To tune: edit this table.
 
@@ -41,7 +49,7 @@ To tune: edit this table.
    `https://<app>.example.com` if no address is given).
 2. **Read the product, not the old script**: the app's templates for
    the exact labels on buttons and headings, the help page, and
-   the MCP tools' descriptions. A label in the script that isn't on the
+   the MCP tools' descriptions if the app has `apps/mcp/`. A label in the script that isn't on the
    screen fails the tester.
 3. **Choose the scenarios** for the level, in the order a new user meets
    them. Each one depends only on the scenarios before it.
@@ -49,7 +57,7 @@ To tune: edit this table.
 5. **Cut** to budget. Shorten "You should see" before removing a
    scenario. Never drop a check that proves the core promise (for Tally:
    only time actually worked is logged; it works offline; the AI can't
-   delete).
+   delete). Leave out every connector step when the app has no `/mcp`.
 6. **Walk it** if you can run the app: follow the script yourself and
    fix any step that doesn't match.
 7. **Publish** as a new doc in the app's Linear project
@@ -60,7 +68,8 @@ To tune: edit this table.
 ## Shape
 
 1. **Intro** (≤60 words): what this is, what the tester needs (phone,
-   computer, an email they can read, an AI account), how long it takes,
+   computer, an email they can read, and an AI account only if the app
+   serves `/mcp`), how long it takes,
    and anything physical ("wear something you can move in").
 2. **Before you start**: what to ask the deployer for (the address, an
    unused email).

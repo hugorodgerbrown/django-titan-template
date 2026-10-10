@@ -10,6 +10,14 @@ Each Titan app gets a post in the series "Titan #N: <title>". Tally's
 working draft in Linear, updated through the build, and it argues one
 idea: AI lets software become smaller.
 
+## Needs
+
+The Linear MCP server, to read and publish docs: the Linear connector in
+Claude, or in Claude Code
+`claude mcp add --transport http linear-server https://mcp.linear.app/mcp`
+then `/mcp` to sign in. Without it, say so and give the draft as Markdown
+instead of publishing.
+
 ## The length setting
 
 The user names a level. If they don't, use the default and say so.

@@ -19,6 +19,14 @@ All three answer one question for the reader: *what should we build,
 keep or avoid, and why?* The evidence serves that answer. It never
 replaces it.
 
+## Needs
+
+The Linear MCP server, to read and publish docs: the Linear connector in
+Claude, or in Claude Code
+`claude mcp add --transport http linear-server https://mcp.linear.app/mcp`
+then `/mcp` to sign in. Without it, say so and give the draft as Markdown
+instead of publishing.
+
 ## The length setting
 
 The user names a level ("brief", "standard", "full"). If they don't,

@@ -49,7 +49,7 @@ difference as a normal merge: review it like any PR.
 | Security | Strict CSP (no inline anything), `check --deploy`, semgrep, pip-audit, npm audit, gitleaks, Dependabot |
 | Performance | Precache byte budget, query-count assertions, Lighthouse CI budgets |
 | CI and deploy | One GitHub Actions job per tox env; Render Blueprint with a daily clean-up job |
-| Docs | `CLAUDE.md`, testing, PWA, security, performance, decision records; Claude Code skills for the Linear docs (research, user testing script, blog post), short by default |
+| Docs | `CLAUDE.md`, testing, PWA, security, performance, decision records; Claude Code skills for the Linear docs (research, user testing script, blog post), short by default; they need the [Linear MCP server](https://linear.app/docs/mcp) |
 
 Read the generated `docs/pwa.md` for how the offline pieces fit together.
 
