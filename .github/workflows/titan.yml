@@ -1,0 +1,33 @@
+# Lint, type-check and test bin/titan, the app provisioner. It talks to
+# Render, Resend, GitHub and shared-db; the tests fake all four.
+name: Titan provisioner
+
+on:
+  push:
+    branches: [main]
+    paths: ["bin/titan", "tests/**", "ruff.toml", ".github/workflows/titan.yml"]
+  pull_request:
+    paths: ["bin/titan", "tests/**", "ruff.toml", ".github/workflows/titan.yml"]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      - name: Lint and format
+        run: |
+          uvx ruff@0.16.10 check bin/titan tests
+          uvx ruff@0.16.10 format --check bin/titan tests
+      - name: Type check
+        run: uvx --python 3.14 --with 'psycopg[binary]' mypy@1.18.2 --strict --scripts-are-modules bin/titan
+      - name: Test
+        run: uv run --python 3.14 --with pytest --with 'psycopg[binary]' pytest tests -q

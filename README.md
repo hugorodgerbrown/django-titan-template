@@ -23,6 +23,40 @@ whether to serve an MCP endpoint through
 [mcp-auth](https://github.com/hugorodgerbrown/mcp-auth) (and which release,
 and who may connect), and the Render region.
 
+## Provision and deploy a new app
+
+`bin/titan` sets up everything around a new app: the GitHub repo, the
+Render services, a role and database on shared-db, a sending-only Resend
+key, the env vars and the custom domain. Each app is `<slug>.ultraniche.ai`
+and sends from `<slug>@mail.ultraniche.ai`.
+
+```bash
+bin/titan new resort-planner             # plan: reads every account, changes nothing
+bin/titan new resort-planner --commit    # generate, push, then stops for the Blueprint
+#   → deploy the Blueprint from the printed link (leave prompted values blank)
+bin/titan new resort-planner --commit    # database, Resend key, env vars, domain, deploy
+bin/titan golive resort-planner --commit # prints the CNAME, waits for DNS, sets SITE_URL
+```
+
+Two steps stay manual because neither provider has an API for them:
+creating the Blueprint in Render (one click) and adding the CNAME in
+Squarespace at go-live (one record). Every run is safe to repeat; it does
+only what is still missing. Until go-live the app runs on its onrender.com
+address, so it can be tried before the domain points at it.
+
+It needs `uv`, `gh` (signed in) and these settings, in the environment or
+`~/.config/titan/env`:
+
+| Setting | What |
+|---|---|
+| `RENDER_API_KEY` | Render API key |
+| `RESEND_API_KEY` | A **full-access** Resend key; it creates each app's sending-only key |
+| `TITAN_DB_ADMIN_URL` | shared-db's External Database URL. shared-db only accepts its allowlisted IP addresses, so run `titan` from one of them |
+
+`TITAN_DOMAIN`, `TITAN_MAIL_DOMAIN` and `TITAN_GITHUB_OWNER` override the
+defaults. Secrets go from each provider straight into Render and are never
+printed. Tests: `uv run --with pytest --with 'psycopg[binary]' pytest tests`.
+
 ## Keep a project up to date
 
 ```bash
