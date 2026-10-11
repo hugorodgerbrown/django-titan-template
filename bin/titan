@@ -172,6 +172,11 @@ class App:
         return f"{self.settings.github_owner}/{self.slug}"
 
     @property
+    def repo_url(self) -> str:
+        """The repository's URL, as Render records it on a service."""
+        return f"https://github.com/{self.repo}"
+
+    @property
     def web_service(self) -> str:
         """The web service's name in render.yaml."""
         return self.slug
@@ -241,6 +246,15 @@ def request_json(method: str, url: str, token: str, body: Any = None) -> Any:
     return json.loads(raw) if raw else None
 
 
+def same_repo(a: str, b: str) -> bool:
+    """Whether two GitHub URLs name the same repository."""
+
+    def norm(url: str) -> str:
+        return url.lower().rstrip("/").removesuffix(".git")
+
+    return norm(a) == norm(b)
+
+
 def unwrap(rows: list[dict[str, Any]], key: str) -> list[dict[str, Any]]:
     """Render lists come as [{cursor, <key>: {...}}]; return the inner objects."""
     return [row.get(key, row) for row in rows or []]
@@ -257,11 +271,30 @@ class Render:
     def _get(self, path: str) -> Any:
         return self.call("GET", RENDER_API + path, self.token)
 
-    def service(self, name: str) -> dict[str, Any] | None:
-        """The service with exactly this name, or None."""
-        query = urllib.parse.urlencode({"name": name, "limit": 20})
-        services = unwrap(self._get(f"/services?{query}"), "service")
-        return next((s for s in services if s.get("name") == name), None)
+    def service(self, name: str, repo: str, kind: str) -> dict[str, Any] | None:
+        """The service with this name, built from this repo; None if there is none.
+
+        A same-named service from another repo, or more than one match (the key
+        can see several workspaces), is an error: the provisioner overwrites a
+        service's credentials and deploys it, so it never guesses.
+        """
+        query = urllib.parse.urlencode({"name": name, "limit": 100})
+        named = [
+            s for s in unwrap(self._get(f"/services?{query}"), "service") if s.get("name") == name
+        ]
+        ours = [s for s in named if same_repo(s.get("repo", ""), repo) and s.get("type") == kind]
+        if named and not ours:
+            raise TitanError(
+                f"A Render service named {name!r} exists but is not this app's {kind} from {repo}; "
+                "refusing to change it. Pick another slug."
+            )
+        if len(ours) > 1:
+            workspaces = ", ".join(sorted({str(s.get("ownerId")) for s in ours}))
+            raise TitanError(
+                f"{len(ours)} Render services named {name!r} come from {repo} "
+                f"(workspaces {workspaces}); use an API key for one workspace."
+            )
+        return ours[0] if ours else None
 
     def env(self, service_id: str) -> dict[str, str]:
         """The service's own env vars (not its env groups)."""
@@ -474,7 +507,7 @@ def github_repo_exists(repo: str) -> bool:
 
 def generate_repo(app: App, workdir: Path) -> None:
     """Copier copy from the template, then create the private GitHub repo and push."""
-    target = workdir / app.slug
+    target = (workdir / app.slug).resolve()
     if target.exists():
         raise TitanError(f"{target} already exists; move it or run from another directory.")
     run_cmd(
@@ -539,8 +572,8 @@ def plan_new(
             run=lambda: generate_repo(app, workdir),
         )
 
-    web = render.service(app.web_service)
-    cron = render.service(app.cron_service)
+    web = render.service(app.web_service, app.repo_url, "web_service")
+    cron = render.service(app.cron_service, app.repo_url, "cron_job")
     if web is None or cron is None:
         plan.add(
             "Deploy the Blueprint in Render (one click; leave the prompted values blank)",
@@ -620,7 +653,8 @@ def _plan_provision(
             run=make_key,
         )
 
-    changed = {"web": False}
+    # Env vars take effect on a service's next deploy, the cron job's included.
+    changed = {"web": False, "cron": False}
 
     def write_env() -> None:
         wanted = app.mail_env(made.get("EMAIL_HOST_PASSWORD"))
@@ -637,6 +671,7 @@ def _plan_provision(
         for key, value in cron_wanted.items():
             if value and cron_env.get(key) != value:
                 render.set_env(cron["id"], key, value)
+                changed["cron"] = True
 
     new_url = not keep_password
     pending = sorted(k for k, v in app.mail_env(None).items() if web_env.get(k) != v)
@@ -672,20 +707,19 @@ def _plan_provision(
     url = service_url(web)
 
     def deploy() -> None:
-        if not changed["web"]:
-            check_health(url)
-            return
-        wait_for_deploy(render, web["id"], render.deploy(web["id"]), deploy_timeout)
+        for name, service in (("web", web), ("cron", cron)):
+            if changed[name]:
+                wait_for_deploy(render, service["id"], render.deploy(service["id"]), deploy_timeout)
         check_health(url)
 
-    plan.add("Deploy if anything changed, then check /healthz", url, run=deploy)
+    plan.add("Deploy whatever changed, then check /healthz", url, run=deploy)
     plan.stop = f"At go-live: `bin/titan golive {app.slug}` prints the CNAME to add in Squarespace."
     return plan
 
 
 def plan_golive(app: App, render: Render, verify_timeout: float, deploy_timeout: float) -> Plan:
     """Work out what `golive` still has to do."""
-    web = render.service(app.web_service)
+    web = render.service(app.web_service, app.repo_url, "web_service")
     if web is None:
         raise TitanError(
             f"No Render service {app.web_service!r}; run `bin/titan new {app.slug}` first."

@@ -61,8 +61,10 @@ class FakeRender:
         self.deploys: list[str] = []
         self.verify_flips = True
 
-    def service(self, name: str) -> dict[str, Any] | None:
-        """The service with this name, or None."""
+    def service(self, name: str, repo: str, kind: str) -> dict[str, Any] | None:
+        """The service with this name, or None; checks the caller asks for the right one."""
+        assert repo == "https://github.com/hugorodgerbrown/tally"
+        assert kind == ("cron_job" if name.endswith("-purge") else "web_service")
         return self.services.get(name)
 
     def env(self, service_id: str) -> dict[str, str]:
@@ -287,7 +289,7 @@ def test_new_provisions_everything(app: Any, tmp_path: Path, no_network: list[st
     assert render.domains["srv-web"] == [
         {"name": "tally.ultraniche.ai", "verificationStatus": "unverified"}
     ]
-    assert render.deploys == ["srv-web"]
+    assert render.deploys == ["srv-web", "crn-cron"]  # env vars apply on the next deploy
     assert no_network == ["https://tally-s2nb.onrender.com"]
     assert "SITE_URL" not in web  # set at go-live, so the app works on onrender.com until then
 
@@ -300,7 +302,7 @@ def test_new_is_idempotent(app: Any, tmp_path: Path) -> None:
 
     out = run(titan.plan_new(app, render, resend, db, tmp_path, 60), commit=True)
     assert (len(render.writes), len(resend.keys), len(db.ensured)) == (writes, keys, ensured)
-    assert render.deploys == ["srv-web"]  # no second deploy
+    assert render.deploys == ["srv-web", "crn-cron"]  # no second deploys
     assert (
         sum("✓" in line for line in out) == len(out) - 3
     )  # all but deploy/health and the go-live note
@@ -381,6 +383,9 @@ def test_golive_needs_the_service(app: Any) -> None:
 # ---------------------------------------------------------------- API clients
 
 
+TALLY = {"type": "web_service", "repo": "https://github.com/hugorodgerbrown/tally"}
+
+
 def test_render_unwraps_lists_and_pages_env_vars() -> None:
     """Render unwraps lists and pages env vars."""
     calls: list[str] = []
@@ -390,15 +395,16 @@ def test_render_unwraps_lists_and_pages_env_vars() -> None:
         calls.append(f"{method} {url}")
         if "/services?" in url:
             return [
-                {"cursor": "c", "service": {"id": "srv-x", "name": "tally-purge"}},
-                {"cursor": "d", "service": {"id": "srv-y", "name": "tally"}},
+                {"cursor": "c", "service": {"id": "srv-x", "name": "tally-purge", **TALLY}},
+                {"cursor": "d", "service": {"id": "srv-y", "name": "tally", **TALLY}},
             ]
         if "cursor=c99" in url:
             return [{"cursor": "z", "envVar": {"key": "LAST", "value": "1"}}]
         return [{"cursor": f"c{i}", "envVar": {"key": f"K{i}", "value": "v"}} for i in range(100)]
 
     render = titan.Render("tok", call)
-    assert render.service("tally") == {"id": "srv-y", "name": "tally"}
+    found = render.service("tally", "https://github.com/hugorodgerbrown/tally", "web_service")
+    assert found == {"id": "srv-y", "name": "tally", **TALLY}
     env = render.env("srv-y")
     assert len(env) == 101
     assert env["LAST"] == "1"
@@ -460,3 +466,63 @@ def test_main_reports_errors_and_exits_non_zero(
         monkeypatch.delenv(key, raising=False)
     assert titan.main(["new", "tally"]) == 1
     assert "Set RENDER_API_KEY" in capsys.readouterr().err
+
+
+def test_render_refuses_a_same_named_service_from_another_repo() -> None:
+    """A service called tally that Tally's repo did not make is never touched."""
+    rows = [
+        {
+            "service": {
+                "id": "srv-x",
+                "name": "tally",
+                "type": "web_service",
+                "repo": "https://github.com/someone/else",
+            }
+        }
+    ]
+    render = titan.Render("tok", lambda *a, **k: rows)
+    with pytest.raises(titan.TitanError, match="refusing to change it"):
+        render.service("tally", "https://github.com/hugorodgerbrown/tally", "web_service")
+
+
+def test_render_refuses_matches_in_two_workspaces() -> None:
+    """Two matching services means the key sees two workspaces: stop, don't guess."""
+    service = {
+        "name": "tally",
+        "type": "web_service",
+        "repo": "https://github.com/hugorodgerbrown/tally.git",
+    }
+    rows = [
+        {"service": {**service, "id": "a", "ownerId": "tea-1"}},
+        {"service": {**service, "id": "b", "ownerId": "tea-2"}},
+    ]
+    render = titan.Render("tok", lambda *a, **k: rows)
+    with pytest.raises(titan.TitanError, match="workspaces tea-1, tea-2"):
+        render.service("tally", "https://github.com/hugorodgerbrown/tally", "web_service")
+
+
+def test_render_matches_on_repo_and_type() -> None:
+    """The web service and the cron job share a repo; the type tells them apart."""
+    repo = "https://github.com/HugoRodgerBrown/tally/"
+    rows = [
+        {"service": {"id": "w", "name": "tally", "type": "web_service", "repo": repo}},
+        {"service": {"id": "c", "name": "tally", "type": "cron_job", "repo": repo}},
+    ]
+    render = titan.Render("tok", lambda *a, **k: rows)
+    found = render.service("tally", "https://github.com/hugorodgerbrown/tally", "cron_job")
+    assert found is not None
+    assert found["id"] == "c"
+
+
+def test_generate_repo_resolves_a_relative_dir(
+    app: Any, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """--dir . works: gh gets the same absolute path it runs in."""
+    calls: list[tuple[tuple[str, ...], Path | None]] = []
+    monkeypatch.setattr(titan, "run_cmd", lambda *args, cwd=None: calls.append((args, cwd)))
+    monkeypatch.chdir(tmp_path)
+    titan.generate_repo(app, Path("."))
+    gh_args, gh_cwd = calls[-1]
+    source = gh_args[gh_args.index("--source") + 1]
+    assert Path(source).is_absolute()
+    assert Path(source) == gh_cwd == tmp_path / "tally"
