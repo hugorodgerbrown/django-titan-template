@@ -294,6 +294,22 @@ def test_new_provisions_everything(app: Any, tmp_path: Path, no_network: list[st
     assert "SITE_URL" not in web  # set at go-live, so the app works on onrender.com until then
 
 
+def test_new_provisions_an_app_with_no_cron_job(
+    app: Any, tmp_path: Path, no_network: list[str]
+) -> None:
+    """An app with no scheduled jobs leaves out <app>-purge: only the web service is set up."""
+    render, db = FakeRender(), FakeDb()
+    del render.services["tally-purge"]
+    out = run(titan.plan_new(app, render, FakeResend(), db, tmp_path, 60), commit=True)
+
+    assert any("Render services (tally; no tally-purge job)" in line for line in out)
+    assert render.envs["srv-web"]["DATABASE_URL"]
+    assert render.envs["crn-cron"] == {}
+    assert all(service == "srv-web" for service, _, _ in render.writes)
+    assert render.deploys == ["srv-web"]
+    assert no_network == ["https://tally-s2nb.onrender.com"]
+
+
 def test_new_is_idempotent(app: Any, tmp_path: Path) -> None:
     """New is idempotent."""
     render, resend, db = FakeRender(), FakeResend(), FakeDb()

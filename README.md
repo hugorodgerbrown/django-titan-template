@@ -38,6 +38,9 @@ bin/titan new resort-planner --commit    # database, Resend key, env vars, domai
 bin/titan golive resort-planner --commit # prints the CNAME, waits for DNS, sets SITE_URL
 ```
 
+An app with no scheduled jobs can leave the `<slug>-purge` cron job out of
+its `render.yaml`; `titan` then provisions the web service alone.
+
 Two steps stay manual because neither provider has an API for them:
 creating the Blueprint in Render (one click) and adding the CNAME in
 Squarespace at go-live (one record). Every run is safe to repeat; it does
