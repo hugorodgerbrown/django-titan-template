@@ -1,0 +1,804 @@
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.12"
+# dependencies = ["psycopg[binary]>=3.2,<4"]
+# ///
+"""Provision a Titan app on Render, shared-db and Resend.
+
+    bin/titan new <app>              # plan: reads every account, changes nothing
+    bin/titan new <app> --commit     # do it; safe to re-run, it picks up where it stopped
+    bin/titan golive <app>           # plan the go-live (after you add the CNAME)
+    bin/titan golive <app> --commit
+
+`new` generates the repository from this template, pushes it to GitHub,
+and stops at the one step no API offers: deploying the Blueprint in Render
+(it prints the link). Re-run it once the services exist and it creates the
+app's role and database on shared-db, a sending-only Resend key for the
+shared mail domain, adds <app>.<TITAN_DOMAIN> as the custom domain, writes
+the env vars, deploys and checks /healthz on the onrender.com address.
+
+`golive` prints the CNAME to add in Squarespace (which has no DNS API),
+waits for Render to verify the domain, then sets SITE_URL and
+DJANGO_ALLOWED_HOSTS, deploys and checks /healthz on the real address.
+
+Secrets go from the provider's response straight into Render; nothing
+prints them. Settings come from the environment, or ~/.config/titan/env
+(KEY=value lines):
+
+    RENDER_API_KEY        Render API key (Account settings > API keys)
+    RESEND_API_KEY        a FULL-ACCESS Resend key: it creates the per-app keys
+    TITAN_DB_ADMIN_URL    shared-db's External Database URL (default user);
+                          shared-db only accepts your allowlisted IP addresses
+    TITAN_DOMAIN          parent domain for apps (default ultraniche.ai)
+    TITAN_MAIL_DOMAIN     verified Resend domain (default mail.ultraniche.ai)
+    TITAN_GITHUB_OWNER    GitHub owner for new repos (default hugorodgerbrown)
+    TITAN_DB_INTERNAL_HOST  shared-db's internal host, if not the first label
+                          of the external one (Render's convention)
+
+Needs `gh` (signed in) and `uvx` for `new`'s first step.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import re
+import secrets
+import shutil
+import subprocess
+import sys
+import time
+import urllib.error
+import urllib.parse
+import urllib.request
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from email.utils import formataddr
+from pathlib import Path
+from typing import Any
+
+TEMPLATE = "gh:hugorodgerbrown/django-titan-template"
+CONFIG_FILE = Path.home() / ".config" / "titan" / "env"
+RENDER_API = "https://api.render.com/v1"
+RESEND_API = "https://api.resend.com"
+SLUG = re.compile(r"^[a-z][a-z0-9-]*$")
+# Render deploy states that end a deploy, and the one that means it worked.
+DEPLOY_DONE = {
+    "live",
+    "deactivated",
+    "build_failed",
+    "update_failed",
+    "canceled",
+    "pre_deploy_failed",
+}
+
+
+class TitanError(Exception):
+    """A step failed; the message says what to do about it."""
+
+
+# ---------------------------------------------------------------- settings
+
+
+@dataclass(frozen=True)
+class Settings:
+    """Credentials and defaults, from the environment or the config file."""
+
+    render_api_key: str
+    resend_api_key: str
+    db_admin_url: str
+    domain: str = "ultraniche.ai"
+    mail_domain: str = "mail.ultraniche.ai"
+    github_owner: str = "hugorodgerbrown"
+    db_internal_host: str = ""
+
+    @classmethod
+    def load(cls, environ: dict[str, str] | None = None, path: Path | None = None) -> Settings:
+        """Read settings; the environment wins over the config file."""
+        path = path or CONFIG_FILE
+        values = read_env_file(path)
+        values.update(os.environ if environ is None else environ)
+        missing = [
+            k
+            for k in ("RENDER_API_KEY", "RESEND_API_KEY", "TITAN_DB_ADMIN_URL")
+            if not values.get(k)
+        ]
+        if missing:
+            raise TitanError(f"Set {', '.join(missing)} in the environment or {path}.")
+        return cls(
+            render_api_key=values["RENDER_API_KEY"],
+            resend_api_key=values["RESEND_API_KEY"],
+            db_admin_url=values["TITAN_DB_ADMIN_URL"],
+            domain=values.get("TITAN_DOMAIN") or cls.domain,
+            mail_domain=values.get("TITAN_MAIL_DOMAIN") or cls.mail_domain,
+            github_owner=values.get("TITAN_GITHUB_OWNER") or cls.github_owner,
+            db_internal_host=values.get("TITAN_DB_INTERNAL_HOST", ""),
+        )
+
+
+def read_env_file(path: Path) -> dict[str, str]:
+    """Parse KEY=value lines; blank lines and # comments are skipped."""
+    if not path.exists():
+        return {}
+    values = {}
+    for line in path.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        values[key.strip()] = value.strip().strip("'\"")
+    return values
+
+
+# ---------------------------------------------------------------- names
+
+
+@dataclass(frozen=True)
+class App:
+    """Every name derived from the app's slug."""
+
+    slug: str
+    name: str
+    settings: Settings
+
+    @classmethod
+    def from_slug(cls, slug: str, settings: Settings, name: str = "") -> App:
+        """Validate the slug (the template's own rule) and derive the rest."""
+        if not SLUG.match(slug):
+            raise TitanError(
+                f"{slug!r}: lowercase letters, digits and hyphens, starting with a letter."
+            )
+        return cls(slug=slug, name=name or slug.replace("-", " ").title(), settings=settings)
+
+    @property
+    def domain(self) -> str:
+        """The app's public host, e.g. tally.ultraniche.ai."""
+        return f"{self.slug}.{self.settings.domain}"
+
+    @property
+    def db_name(self) -> str:
+        """Role and database name: Postgres identifiers read better without hyphens."""
+        return self.slug.replace("-", "_")
+
+    @property
+    def from_email(self) -> str:
+        """DEFAULT_FROM_EMAIL, e.g. Tally <tally@mail.ultraniche.ai>."""
+        return formataddr((self.name, f"{self.slug}@{self.settings.mail_domain}"))
+
+    @property
+    def repo(self) -> str:
+        """owner/slug on GitHub."""
+        return f"{self.settings.github_owner}/{self.slug}"
+
+    @property
+    def web_service(self) -> str:
+        """The web service's name in render.yaml."""
+        return self.slug
+
+    @property
+    def cron_service(self) -> str:
+        """The clean-up cron job's name in render.yaml."""
+        return f"{self.slug}-purge"
+
+    def database_url(self, password: str) -> str:
+        """The internal connection URL Render services use."""
+        admin = urllib.parse.urlsplit(self.settings.db_admin_url)
+        host = self.settings.db_internal_host or (admin.hostname or "").split(".")[0]
+        if not host:
+            raise TitanError("TITAN_DB_ADMIN_URL has no host.")
+        quoted = urllib.parse.quote(password, safe="")
+        return f"postgresql://{self.db_name}:{quoted}@{host}:5432/{self.db_name}"
+
+    def blueprint_link(self) -> str:
+        """Render's deploy link for the repo's render.yaml."""
+        return "https://render.com/deploy?repo=" + urllib.parse.quote(
+            f"https://github.com/{self.repo}", safe=":/"
+        )
+
+    def mail_env(self, api_key: str | None) -> dict[str, str]:
+        """The web service's email settings; the key only when a new one was made."""
+        env = {
+            "EMAIL_HOST": "smtp.resend.com",
+            "EMAIL_PORT": "587",
+            "EMAIL_HOST_USER": "resend",
+            "DEFAULT_FROM_EMAIL": self.from_email,
+        }
+        if api_key:
+            env["EMAIL_HOST_PASSWORD"] = api_key
+        return env
+
+
+# ---------------------------------------------------------------- HTTP
+
+
+def open_https(req: urllib.request.Request | str, timeout: float) -> Any:
+    """urlopen, refusing anything but https (no file: or custom schemes)."""
+    url = req if isinstance(req, str) else req.full_url
+    if not url.startswith("https://"):
+        raise TitanError(f"Refusing a non-https URL: {url}")
+    return urllib.request.urlopen(req, timeout=timeout)  # noqa: S310 - scheme checked above
+
+
+def request_json(method: str, url: str, token: str, body: Any = None) -> Any:
+    """One JSON request; raises TitanError with the provider's message on failure."""
+    data = None if body is None else json.dumps(body).encode()
+    # open_https below refuses anything but https.
+    req = urllib.request.Request(url, data=data, method=method)  # noqa: S310
+    req.add_header("Authorization", f"Bearer {token}")
+    req.add_header("Accept", "application/json")
+    req.add_header("User-Agent", "titan-provisioner")
+    if data is not None:
+        req.add_header("Content-Type", "application/json")
+    try:
+        with open_https(req, timeout=30) as resp:
+            raw = resp.read()
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode(errors="replace")[:300]
+        raise TitanError(f"{method} {url} failed: {exc.code} {detail}") from exc
+    except urllib.error.URLError as exc:
+        raise TitanError(f"{method} {url} failed: {exc.reason}") from exc
+    return json.loads(raw) if raw else None
+
+
+def unwrap(rows: list[dict[str, Any]], key: str) -> list[dict[str, Any]]:
+    """Render lists come as [{cursor, <key>: {...}}]; return the inner objects."""
+    return [row.get(key, row) for row in rows or []]
+
+
+class Render:
+    """The few Render API calls the provisioner needs."""
+
+    def __init__(self, token: str, call: Callable[..., Any] = request_json) -> None:
+        """Keep the token; `call` is swappable for tests."""
+        self.token = token
+        self.call = call
+
+    def _get(self, path: str) -> Any:
+        return self.call("GET", RENDER_API + path, self.token)
+
+    def service(self, name: str) -> dict[str, Any] | None:
+        """The service with exactly this name, or None."""
+        query = urllib.parse.urlencode({"name": name, "limit": 20})
+        services = unwrap(self._get(f"/services?{query}"), "service")
+        return next((s for s in services if s.get("name") == name), None)
+
+    def env(self, service_id: str) -> dict[str, str]:
+        """The service's own env vars (not its env groups)."""
+        values: dict[str, str] = {}
+        cursor = ""
+        while True:
+            query = urllib.parse.urlencode({"limit": 100, **({"cursor": cursor} if cursor else {})})
+            rows = self._get(f"/services/{service_id}/env-vars?{query}") or []
+            for item in unwrap(rows, "envVar"):
+                values[item["key"]] = item.get("value") or ""
+            if len(rows) < 100:
+                return values
+            cursor = rows[-1].get("cursor", "")
+            if not cursor:
+                return values
+
+    def set_env(self, service_id: str, key: str, value: str) -> None:
+        """Add or update one env var. Takes effect on the next deploy."""
+        path = f"/services/{service_id}/env-vars/{urllib.parse.quote(key)}"
+        self.call("PUT", RENDER_API + path, self.token, {"value": value})
+
+    def custom_domains(self, service_id: str) -> list[dict[str, Any]]:
+        """The service's custom domains, with verificationStatus."""
+        return unwrap(self._get(f"/services/{service_id}/custom-domains"), "customDomain")
+
+    def add_custom_domain(self, service_id: str, name: str) -> None:
+        """Attach a custom domain; it stays unverified until DNS points at Render."""
+        self.call(
+            "POST", f"{RENDER_API}/services/{service_id}/custom-domains", self.token, {"name": name}
+        )
+
+    def verify_custom_domain(self, service_id: str, name: str) -> None:
+        """Ask Render to check the domain's DNS again."""
+        self.call(
+            "POST", f"{RENDER_API}/services/{service_id}/custom-domains/{name}/verify", self.token
+        )
+
+    def deploy(self, service_id: str) -> str:
+        """Start a deploy of the latest commit; returns its id."""
+        deploy = self.call("POST", f"{RENDER_API}/services/{service_id}/deploys", self.token, {})
+        return str(deploy["id"])
+
+    def deploy_status(self, service_id: str, deploy_id: str) -> str:
+        """created, build_in_progress, …, live or a failed state."""
+        return str(self._get(f"/services/{service_id}/deploys/{deploy_id}")["status"])
+
+
+class Resend:
+    """The two Resend API calls the provisioner needs."""
+
+    def __init__(self, token: str, call: Callable[..., Any] = request_json) -> None:
+        """Keep the token; `call` is swappable for tests."""
+        self.token = token
+        self.call = call
+
+    def domain_id(self, name: str) -> str:
+        """The id of a verified sending domain."""
+        domains = self.call("GET", f"{RESEND_API}/domains", self.token)["data"]
+        match = next((d for d in domains if d["name"] == name), None)
+        if match is None:
+            raise TitanError(f"{name} is not a domain on this Resend account.")
+        if match.get("status") != "verified":
+            raise TitanError(f"{name} is not verified on Resend (status {match.get('status')}).")
+        return str(match["id"])
+
+    def create_sending_key(self, name: str, domain_id: str) -> str:
+        """A key that can only send, and only from one domain. Returns the token."""
+        body = {"name": name[:50], "permission": "sending_access", "domain_id": domain_id}
+        return str(self.call("POST", f"{RESEND_API}/api-keys", self.token, body)["token"])
+
+
+# ---------------------------------------------------------------- Postgres
+
+
+class SharedDb:
+    """Role and database for one app on shared-db, through its admin user."""
+
+    def __init__(self, url: str) -> None:
+        """Connect lazily, so a plan that never reaches the database needs no driver."""
+        self.url = url
+        self._conn: Any = None
+
+    @property
+    def conn(self) -> Any:
+        """An autocommit connection (CREATE DATABASE cannot run in a transaction)."""
+        if self._conn is None:
+            import psycopg
+
+            try:
+                self._conn = psycopg.connect(self.url, autocommit=True, connect_timeout=10)
+            except psycopg.OperationalError as exc:
+                raise TitanError(
+                    f"Cannot reach shared-db: {exc}. It only accepts the IP addresses on its "
+                    "allowlist (Render: shared-db, Networking)."
+                ) from exc
+        return self._conn
+
+    def _one(self, query: str, *params: Any) -> Any:
+        row = self.conn.execute(query, params).fetchone()
+        return row[0] if row else None
+
+    def can_provision(self) -> bool:
+        """Whether the admin user can create roles and databases."""
+        row = self.conn.execute(
+            "select rolsuper or (rolcreaterole and rolcreatedb)"
+            " from pg_roles where rolname = current_user"
+        ).fetchone()
+        return bool(row and row[0])
+
+    def role_exists(self, name: str) -> bool:
+        """Whether a role with this name exists."""
+        return bool(self._one("select 1 from pg_roles where rolname = %s", name))
+
+    def database_exists(self, name: str) -> bool:
+        """Whether a database with this name exists."""
+        return bool(self._one("select 1 from pg_database where datname = %s", name))
+
+    def ensure(self, name: str, password: str | None) -> None:
+        """Create or re-key the role, create its database, and shut everyone else out.
+
+        `password` None leaves an existing role's password alone.
+        """
+        from psycopg import sql
+
+        ident = sql.Identifier(name)
+        if not self.role_exists(name):
+            self.conn.execute(
+                sql.SQL("create role {} login password {}").format(ident, sql.Literal(password))
+            )
+        elif password is not None:
+            self.conn.execute(
+                sql.SQL("alter role {} login password {}").format(ident, sql.Literal(password))
+            )
+        # Postgres 16+: the creator must be able to SET ROLE to hand a database to it.
+        self.conn.execute(sql.SQL("grant {} to current_user").format(ident))
+        if not self.database_exists(name):
+            self.conn.execute(sql.SQL("create database {} owner {}").format(ident, ident))
+        # Every role may connect to every database unless PUBLIC loses the right.
+        self.conn.execute(sql.SQL("revoke all on database {} from public").format(ident))
+        self.conn.execute(sql.SQL("grant connect on database {} to {}").format(ident, ident))
+
+
+# ---------------------------------------------------------------- steps
+
+
+@dataclass
+class Step:
+    """One thing the command will do; `run` is None when it is already done."""
+
+    title: str
+    detail: str = ""
+    run: Callable[[], None] | None = None
+
+    @property
+    def done(self) -> bool:
+        """Nothing left to do for this step."""
+        return self.run is None
+
+
+@dataclass
+class Plan:
+    """The ordered steps, and whether the run must stop after them."""
+
+    steps: list[Step] = field(default_factory=list)
+    stop: str = ""
+
+    def add(self, title: str, detail: str = "", run: Callable[[], None] | None = None) -> None:
+        """Append a step."""
+        self.steps.append(Step(title, detail, run))
+
+
+def execute(plan: Plan, commit: bool, out: Callable[[str], None] = print) -> None:
+    """Print each step, and run it when committing. A failure stops the run."""
+    total = len(plan.steps)
+    for index, step in enumerate(plan.steps, start=1):
+        mark = "✓" if step.done else ("…" if commit else "○")
+        verb = "" if step.done else ("" if commit else "would: ")
+        out(
+            f"[{index}/{total}] {mark} {verb}{step.title}"
+            + (f" ({step.detail})" if step.detail else "")
+        )
+        if commit and step.run is not None:
+            step.run()
+    if plan.stop:
+        out("")
+        out(plan.stop)
+    elif not commit and any(not s.done for s in plan.steps):
+        out("")
+        out("Nothing changed. Re-run with --commit to do it.")
+
+
+def run_cmd(*args: str, cwd: Path | None = None) -> None:
+    """Run a command, streaming its output; a non-zero exit is a TitanError."""
+    if shutil.which(args[0]) is None:
+        raise TitanError(f"{args[0]} is not installed.")
+    result = subprocess.run(args, cwd=cwd, check=False)
+    if result.returncode != 0:
+        raise TitanError(f"{' '.join(args[:3])} … exited {result.returncode}.")
+
+
+def github_repo_exists(repo: str) -> bool:
+    """Whether `gh` can see the repository."""
+    if shutil.which("gh") is None:
+        raise TitanError("gh is not installed (https://cli.github.com), or run `gh auth login`.")
+    return (
+        subprocess.run(["gh", "repo", "view", repo], capture_output=True, check=False).returncode
+        == 0
+    )
+
+
+def generate_repo(app: App, workdir: Path) -> None:
+    """Copier copy from the template, then create the private GitHub repo and push."""
+    target = workdir / app.slug
+    if target.exists():
+        raise TitanError(f"{target} already exists; move it or run from another directory.")
+    run_cmd(
+        "uvx", "copier", "copy", "--trust",
+        "--data", f"project_name={app.name}",
+        "--data", f"project_slug={app.slug}",
+        TEMPLATE, str(target),
+    )  # fmt: skip
+    run_cmd("git", "add", "-A", cwd=target)
+    run_cmd("git", "commit", "--quiet", "-m", "Generate from django-titan-template", cwd=target)
+    run_cmd(
+        "gh", "repo", "create", app.repo, "--private", "--source", str(target), "--push", cwd=target
+    )
+
+
+def wait_for_deploy(
+    render: Render, service_id: str, deploy_id: str, timeout: float, poll: float = 15
+) -> None:
+    """Block until the deploy is live; any other end state is a failure."""
+    deadline = time.monotonic() + timeout
+    status = "created"
+    while time.monotonic() < deadline:
+        status = render.deploy_status(service_id, deploy_id)
+        if status in DEPLOY_DONE:
+            break
+        time.sleep(poll)
+    if status != "live":
+        raise TitanError(f"Deploy {deploy_id} ended {status}; see the service's Events in Render.")
+
+
+def check_health(url: str, timeout: float = 120, poll: float = 5) -> None:
+    """GET <url>/healthz until it answers 200 (it also reads the database)."""
+    deadline = time.monotonic() + timeout
+    last = ""
+    while time.monotonic() < deadline:
+        try:
+            with open_https(url.rstrip("/") + "/healthz", timeout=10) as resp:
+                if resp.status == 200:
+                    return
+                last = str(resp.status)
+        except (urllib.error.URLError, TimeoutError) as exc:
+            last = str(getattr(exc, "code", None) or getattr(exc, "reason", exc))
+        time.sleep(poll)
+    raise TitanError(f"{url}/healthz did not answer 200 (last: {last}).")
+
+
+def service_url(service: dict[str, Any]) -> str:
+    """The service's onrender.com address."""
+    return str(service.get("serviceDetails", {}).get("url", ""))
+
+
+def plan_new(
+    app: App, render: Render, resend: Resend, db: SharedDb, workdir: Path, deploy_timeout: float
+) -> Plan:
+    """Read every account and work out what `new` still has to do."""
+    plan = Plan()
+    if github_repo_exists(app.repo):
+        plan.add(f"GitHub repo {app.repo}")
+    else:
+        plan.add(
+            f"Generate {app.slug} from the template and push to {app.repo}",
+            run=lambda: generate_repo(app, workdir),
+        )
+
+    web = render.service(app.web_service)
+    cron = render.service(app.cron_service)
+    if web is None or cron is None:
+        plan.add(
+            "Deploy the Blueprint in Render (one click; leave the prompted values blank)",
+            app.blueprint_link(),
+            run=lambda: None,
+        )
+        plan.stop = (
+            f"Next: open {app.blueprint_link()}\n"
+            f"and deploy the Blueprint. Then run `bin/titan new {app.slug} --commit` again: "
+            "it creates the database and email key and fills in the env vars."
+        )
+        return plan
+    plan.add("Render services", f"{app.web_service}, {app.cron_service}")
+
+    web_env = render.env(web["id"])
+    cron_env = render.env(cron["id"])
+    return _plan_provision(
+        plan, app, render, resend, db, web, cron, web_env, cron_env, deploy_timeout
+    )
+
+
+def _plan_provision(
+    plan: Plan,
+    app: App,
+    render: Render,
+    resend: Resend,
+    db: SharedDb,
+    web: dict[str, Any],
+    cron: dict[str, Any],
+    web_env: dict[str, str],
+    cron_env: dict[str, str],
+    deploy_timeout: float,
+) -> Plan:
+    """The steps once the services exist: database, mail key, env vars, domain, deploy."""
+    if not db.can_provision():
+        raise TitanError(
+            "shared-db's admin user cannot create roles and databases"
+            " (needs CREATEROLE and CREATEDB)."
+        )
+
+    # Values made by one step and written by a later one, during this run only.
+    made: dict[str, str] = {}
+    role_exists = db.role_exists(app.db_name)
+    has_url = bool(web_env.get("DATABASE_URL"))
+    # The URL on Render holds the only copy of the password: keep it while the
+    # role it belongs to exists, otherwise make (or re-key to) a new one.
+    keep_password = has_url and role_exists
+    if keep_password and db.database_exists(app.db_name):
+        plan.add(f"Role and database {app.db_name} on shared-db")
+    else:
+        verb = "Re-key" if role_exists and not has_url else "Create"
+
+        def make_db() -> None:
+            password = None if keep_password else secrets.token_urlsafe(32)
+            db.ensure(app.db_name, password)
+            if password:
+                made["DATABASE_URL"] = app.database_url(password)
+
+        plan.add(
+            f"{verb} role and database {app.db_name} on shared-db",
+            "others cannot connect",
+            run=make_db,
+        )
+
+    if web_env.get("EMAIL_HOST_PASSWORD"):
+        plan.add(f"Resend key for {app.slug}")
+    else:
+
+        def make_key() -> None:
+            made["EMAIL_HOST_PASSWORD"] = resend.create_sending_key(
+                app.slug, resend.domain_id(app.settings.mail_domain)
+            )
+
+        plan.add(
+            f"Create a sending-only Resend key {app.slug!r}",
+            f"for {app.settings.mail_domain}",
+            run=make_key,
+        )
+
+    changed = {"web": False}
+
+    def write_env() -> None:
+        wanted = app.mail_env(made.get("EMAIL_HOST_PASSWORD"))
+        if "DATABASE_URL" in made:
+            wanted["DATABASE_URL"] = made["DATABASE_URL"]
+        for key, value in wanted.items():
+            if web_env.get(key) != value:
+                render.set_env(web["id"], key, value)
+                changed["web"] = True
+        cron_wanted = {
+            "DATABASE_URL": made.get("DATABASE_URL") or web_env.get("DATABASE_URL", ""),
+            "DJANGO_SECRET_KEY": web_env.get("DJANGO_SECRET_KEY", ""),
+        }
+        for key, value in cron_wanted.items():
+            if value and cron_env.get(key) != value:
+                render.set_env(cron["id"], key, value)
+
+    new_url = not keep_password
+    pending = sorted(k for k, v in app.mail_env(None).items() if web_env.get(k) != v)
+    pending += [
+        k
+        for k in ("DATABASE_URL", "EMAIL_HOST_PASSWORD")
+        if not web_env.get(k) or (k == "DATABASE_URL" and new_url)
+    ]
+    cron_pending = [
+        k for k in ("DATABASE_URL", "DJANGO_SECRET_KEY")
+        if cron_env.get(k) != web_env.get(k) or (k == "DATABASE_URL" and new_url)
+    ]  # fmt: skip
+    if pending or cron_pending:
+        plan.add(
+            "Write env vars",
+            f"{app.web_service}: {', '.join(pending) or 'none'}; "
+            f"{app.cron_service}: {', '.join(cron_pending) or 'none'}",
+            run=write_env,
+        )
+    else:
+        plan.add("Env vars", f"from {app.from_email}")
+
+    domains = {d.get("name") for d in render.custom_domains(web["id"])}
+    if app.domain in domains:
+        plan.add(f"Custom domain {app.domain}", "verified at go-live")
+    else:
+        plan.add(
+            f"Add custom domain {app.domain}",
+            "verified at go-live",
+            run=lambda: render.add_custom_domain(web["id"], app.domain),
+        )
+
+    url = service_url(web)
+
+    def deploy() -> None:
+        if not changed["web"]:
+            check_health(url)
+            return
+        wait_for_deploy(render, web["id"], render.deploy(web["id"]), deploy_timeout)
+        check_health(url)
+
+    plan.add("Deploy if anything changed, then check /healthz", url, run=deploy)
+    plan.stop = f"At go-live: `bin/titan golive {app.slug}` prints the CNAME to add in Squarespace."
+    return plan
+
+
+def plan_golive(app: App, render: Render, verify_timeout: float, deploy_timeout: float) -> Plan:
+    """Work out what `golive` still has to do."""
+    web = render.service(app.web_service)
+    if web is None:
+        raise TitanError(
+            f"No Render service {app.web_service!r}; run `bin/titan new {app.slug}` first."
+        )
+    target = urllib.parse.urlsplit(service_url(web)).hostname or f"{app.slug}.onrender.com"
+    label = app.domain.removesuffix("." + app.settings.domain)
+    plan = Plan()
+    plan.add(
+        f"In Squarespace (DNS for {app.settings.domain}): CNAME  {label}  →  {target}", "by hand"
+    )
+
+    domain = next(
+        (d for d in render.custom_domains(web["id"]) if d.get("name") == app.domain), None
+    )
+    if domain is None:
+        plan.add(
+            f"Add custom domain {app.domain}",
+            run=lambda: render.add_custom_domain(web["id"], app.domain),
+        )
+    if domain is not None and domain.get("verificationStatus") == "verified":
+        plan.add(f"{app.domain} verified by Render")
+    else:
+
+        def verify() -> None:
+            deadline = time.monotonic() + verify_timeout
+            while True:
+                render.verify_custom_domain(web["id"], app.domain)
+                current = next(
+                    (d for d in render.custom_domains(web["id"]) if d.get("name") == app.domain), {}
+                )
+                if current.get("verificationStatus") == "verified":
+                    return
+                if time.monotonic() > deadline:
+                    raise TitanError(
+                        f"Render has not verified {app.domain} yet. Check the CNAME, then re-run; "
+                        "DNS can take a few minutes to reach Render."
+                    )
+                time.sleep(15)
+
+        plan.add(
+            f"Wait for Render to verify {app.domain}", f"up to {int(verify_timeout)}s", run=verify
+        )
+
+    env = render.env(web["id"])
+    wanted = {"SITE_URL": f"https://{app.domain}", "DJANGO_ALLOWED_HOSTS": app.domain}
+    pending = {k: v for k, v in wanted.items() if env.get(k) != v}
+
+    def switch() -> None:
+        for key, value in pending.items():
+            render.set_env(web["id"], key, value)
+        if pending:
+            wait_for_deploy(render, web["id"], render.deploy(web["id"]), deploy_timeout)
+        check_health(f"https://{app.domain}")
+
+    title = f"Set {', '.join(pending)}, deploy, " if pending else ""
+    plan.add(f"{title}check https://{app.domain}/healthz", run=switch)
+    plan.stop = f"{app.name} is live at https://{app.domain} once every step shows ✓."
+    return plan
+
+
+# ---------------------------------------------------------------- CLI
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Parse arguments, plan, and run when --commit is given."""
+    parser = argparse.ArgumentParser(prog="titan", description=__doc__.split("\n\n")[0])
+    sub = parser.add_subparsers(dest="command", required=True)
+    for command, help_text in (
+        ("new", "provision a new app"),
+        ("golive", "point the app's domain at it"),
+    ):
+        p = sub.add_parser(command, help=help_text)
+        p.add_argument("app", help="the app's slug, e.g. resort-planner")
+        p.add_argument(
+            "--commit", action="store_true", help="make the changes (default: plan only)"
+        )
+        p.add_argument(
+            "--deploy-timeout", type=float, default=900, help="seconds to wait for a deploy"
+        )
+        if command == "new":
+            p.add_argument("--name", default="", help="display name (default: from the slug)")
+            p.add_argument(
+                "--dir",
+                type=Path,
+                default=Path(__file__).resolve().parents[2],
+                help="where to generate the repo (default: beside this template's checkout)",
+            )
+        else:
+            p.add_argument(
+                "--verify-timeout", type=float, default=600, help="seconds to wait for DNS"
+            )
+    args = parser.parse_args(argv)
+
+    try:
+        settings = Settings.load()
+        app = App.from_slug(args.app, settings, getattr(args, "name", ""))
+        render = Render(settings.render_api_key)
+        if args.command == "new":
+            db = SharedDb(settings.db_admin_url)
+            plan = plan_new(
+                app, render, Resend(settings.resend_api_key), db, args.dir, args.deploy_timeout
+            )
+        else:
+            plan = plan_golive(app, render, args.verify_timeout, args.deploy_timeout)
+        execute(plan, args.commit)
+    except TitanError as exc:
+        print(f"\n✗ {exc}", file=sys.stderr)
+        return 1
+    except KeyboardInterrupt:
+        print("\nStopped. Re-run to pick up where it left off.", file=sys.stderr)
+        return 130
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

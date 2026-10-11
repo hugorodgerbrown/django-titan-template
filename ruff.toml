@@ -1,0 +1,19 @@
+# Lint and format for the repo-level tooling (bin/titan and its tests). The
+# generated project has its own settings in template/pyproject.toml.jinja;
+# these mirror them.
+target-version = "py312"
+line-length = 100
+include = ["bin/titan", "tests/**/*.py"]
+extend-exclude = ["template"]
+
+[lint]
+select = ["E", "F", "I", "B", "UP", "S", "SIM", "C4", "PT", "PIE", "RET", "RUF", "T20", "D"]
+ignore = ["D105", "D107"]
+
+[lint.pydocstyle]
+convention = "google"
+
+[lint.per-file-ignores]
+# A command-line tool: printing is its output, and it runs git, gh and uvx.
+"bin/titan" = ["T201", "S603", "S607"]
+"tests/**" = ["S101", "S105", "S106"]
