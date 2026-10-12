@@ -57,8 +57,9 @@ difference as a normal merge: review it like any PR.
 
 ## The ultraniche.ai homepage
 
-[homepage](homepage/) is the static page at ultraniche.ai that reveals the
-Titan apps one at a time. A launch is one edit to `homepage/apps.json`.
+The page at ultraniche.ai that reveals the Titan apps one at a time lives in
+[ultraniche-homepage](https://github.com/hugorodgerbrown/ultraniche-homepage).
+A launch is one edit to its `apps.json`.
 
 ## What a project gets
 
