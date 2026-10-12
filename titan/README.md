@@ -20,10 +20,16 @@ keys live in 1Password.
 titan new tally       # generate the repo and push it to GitHub; nothing on Render
                       # ...work on it, push to main...
 titan deploy tally    # set it up on Render and deploy it
-titan golive tally    # after the CNAME: verify, set SITE_URL, deploy, check
+titan golive tally    # after the CNAME: verify, set SITE_URL and FIVEBAR_DOMAIN, deploy, check
 titan status tally    # what exists and what is missing; changes nothing
 titan                 # asks which of these, then asks about the app
 ```
+
+`golive` also turns on the app's visitor counts: it sets `FIVEBAR_DOMAIN`
+to the app's domain, and lists adding that site at
+[fiveb.ar/sites](https://fiveb.ar/sites) as a step to do by hand, since
+fivebar has no API for it. Until the site is added there, nothing is
+counted.
 
 Every command reads the accounts first, shows the whole plan, and asks
 before changing anything. `--commit` applies without asking and `--plan`
@@ -81,7 +87,7 @@ Blueprint sync never overwrites them.
 | Group | Holds |
 | --- | --- |
 | `titan` (shared) | `DJANGO_DEBUG=0`, `PYTHON_VERSION`, `DJANGO_ALLOWED_HOSTS=.ultraniche.ai`, `DJANGO_CSRF_TRUSTED_ORIGINS=https://*.ultraniche.ai`, and the SMTP relay (`EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_USE_TLS`) |
-| `<slug>` (per app) | `DATABASE_URL`, `DJANGO_SECRET_KEY`, `EMAIL_HOST_PASSWORD`, `DEFAULT_FROM_EMAIL`, and `SITE_URL` from go-live |
+| `<slug>` (per app) | `DATABASE_URL`, `DJANGO_SECRET_KEY`, `EMAIL_HOST_PASSWORD`, `DEFAULT_FROM_EMAIL`, and `SITE_URL` and `FIVEBAR_DOMAIN` from go-live |
 
 titan adds keys missing from `titan` but never overwrites one you changed
 in the dashboard. It lists the changed ones in the plan. A key belongs to

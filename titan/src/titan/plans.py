@@ -12,7 +12,9 @@ Then it waits for the Blueprint, links the groups if Render did not, adds
 the custom domain, deploys whatever changed and checks /healthz.
 
 `golive` waits for Render to verify the domain (after the CNAME is added
-by hand), sets SITE_URL, deploys and checks /healthz on the real address.
+by hand), sets SITE_URL and FIVEBAR_DOMAIN (the site is added to fivebar by
+hand too: it has no API for that), deploys and checks /healthz on the real
+address.
 
 Every step is safe to re-run: each one reads what exists and only does
 what is missing.
@@ -29,7 +31,7 @@ from pathlib import Path
 from typing import Any
 
 from titan import TitanError
-from titan.app import APP_KEYS, COMMON_GROUP, App, common_env
+from titan.app import APP_KEYS, COMMON_GROUP, FIVEBAR_SITES, App, common_env
 from titan.providers import DEPLOY_DONE, GitHub, Render, Resend, SharedDb, health
 from titan.steps import Plan, Progress, Step
 
@@ -468,6 +470,7 @@ def plan_golive(ctx: Context) -> Plan:
     plan.add(
         f"In Squarespace (DNS for {app.settings.domain}): CNAME  {label}  →  {target}", "by hand"
     )
+    plan.add(f"In fivebar: add the site {app.domain}", f"by hand, at {FIVEBAR_SITES}")
 
     domain = next(
         (d for d in render.custom_domains(web["id"]) if d.get("name") == app.domain), None
@@ -509,6 +512,9 @@ def plan_golive(ctx: Context) -> Plan:
     pending: dict[str, str] = {}
     if ctx.value("SITE_URL") != site_url:
         pending["SITE_URL"] = site_url
+    # Turns on the visitor counts: the tag on every page, under this domain.
+    if ctx.value("FIVEBAR_DOMAIN") != app.domain:
+        pending["FIVEBAR_DOMAIN"] = app.domain
     # An app made before the shared group may pin its hosts on the service.
     own_hosts = ctx.web_env.get("DJANGO_ALLOWED_HOSTS")
     extra_hosts = own_hosts is not None and app.domain not in own_hosts.split(",")
