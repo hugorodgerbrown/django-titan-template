@@ -168,7 +168,8 @@ def test_new_is_idempotent(make_ctx: Any) -> None:
     writes, ensured = list(render.writes), list(db.ensured)
 
     plan = plan_new(make_ctx(render=render, db=db))
-    assert [s.title for s in plan.steps if s.run] == ["Deploy what changed, then check /healthz"]
+    assert plan.changes == 0
+    assert plan.steps[-1].title == "Latest deploy is live"
     run(plan)
     assert (render.writes, db.ensured, render.deploys) == (writes, ensured, [])
 

@@ -27,7 +27,7 @@ from typing import Any
 from titan import TitanError
 from titan.app import APP_KEYS, COMMON_GROUP, App, common_env
 from titan.providers import DEPLOY_DONE, GitHub, Render, Resend, SharedDb, health
-from titan.steps import Plan, Progress
+from titan.steps import Plan, Progress, Step
 
 
 @dataclass
@@ -174,6 +174,13 @@ def plan_new(ctx: Context) -> Plan:
         plan.later = "Then: link the env groups, add the domain, deploy and check /healthz"
     else:
         plan.steps += _after_blueprint(ctx).steps
+        *rest, last = plan.steps
+        live = all(
+            (render.latest_deploy(s["id"]) or {}).get("status") == "live" for s in ctx.services
+        )
+        if live and not any(step.run for step in rest):
+            # Nothing to change and the last deploy is live: a re-run is a no-op.
+            plan.steps[-1] = Step("Latest deploy is live", last.detail)
     plan.finish = f"At go-live: `titan golive {app.slug}` gives the CNAME to add in Squarespace."
     return plan
 
