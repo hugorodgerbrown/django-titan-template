@@ -68,18 +68,26 @@ Also: [security](docs/security.md), [performance](docs/performance.md),
 ## Deploy to Render
 
 `render.yaml` is a Blueprint for the web service and a daily clean-up job.
+[titan](https://github.com/hugorodgerbrown/django-titan-template/tree/main/titan)
+sets everything up: run `titan` and pick this app. Both services read their
+settings from two env groups, `titan` (shared by every Titan app) and
+`{{ project_slug }}` (this app's own). titan makes both before the Blueprint
+is deployed.
+
+By hand instead:
 
 1. Create a database and role for the project on your Postgres instance.
-2. In Render, New → Blueprint, pick this repository, and enter
-   `DATABASE_URL` (the instance's internal URL with this project's role and
-   database) for both services. `DJANGO_SECRET_KEY` is generated for the
-   web service; copy it to the cron job.
-3. Set the email relay on the web service: `EMAIL_HOST`, `EMAIL_PORT`,
-   `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD` and `DEFAULT_FROM_EMAIL`.
-   Without them nobody can sign in.
-4. On a custom domain, set `SITE_URL` (links in emails, and the passkey
-   origin) and add the host to `DJANGO_ALLOWED_HOSTS`.
-5. The build runs `collectstatic`; each deploy runs `migrate` first;
+2. Create the env group `titan` with `DJANGO_DEBUG=0`, `PYTHON_VERSION=3.14`,
+   `DJANGO_ALLOWED_HOSTS`, `DJANGO_CSRF_TRUSTED_ORIGINS` and the email relay
+   (`EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_USE_TLS`).
+3. Create the env group `{{ project_slug }}` with `DATABASE_URL` (the
+   instance's internal URL with this project's role and database),
+   `DJANGO_SECRET_KEY`, `EMAIL_HOST_PASSWORD` and `DEFAULT_FROM_EMAIL`.
+   Without the email settings nobody can sign in.
+4. In Render, New → Blueprint, pick this repository.
+5. On a custom domain, set `SITE_URL` (links in emails, and the passkey
+   origin) in the app's group.
+6. The build runs `collectstatic`; each deploy runs `migrate` first;
    `/livez` is Render's health check (the process is up); `/healthz`
    also reads the database, for an uptime monitor.
 {%- if include_mcp %}

@@ -1,2 +1,7 @@
 __pycache__/
 .DS_Store
+.coverage
+.venv/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/

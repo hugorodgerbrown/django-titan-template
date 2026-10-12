@@ -1,13 +1,13 @@
-# Lint, type-check and test bin/titan, the app provisioner. It talks to
-# Render, Resend, GitHub and shared-db; the tests fake all four.
-name: Titan provisioner
+# Lint, type-check and test titan, the app provisioner (titan/). It talks to
+# Render, Resend, GitHub, 1Password and shared-db; the tests fake all of them.
+name: titan
 
 on:
   push:
     branches: [main]
-    paths: ["bin/titan", "tests/**", "ruff.toml", ".github/workflows/titan.yml"]
+    paths: ["titan/**", ".github/workflows/titan.yml"]
   pull_request:
-    paths: ["bin/titan", "tests/**", "ruff.toml", ".github/workflows/titan.yml"]
+    paths: ["titan/**", ".github/workflows/titan.yml"]
   workflow_dispatch:
 
 concurrency:
@@ -17,17 +17,27 @@ concurrency:
 permissions:
   contents: read
 
+defaults:
+  run:
+    working-directory: titan
+
 jobs:
   check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      - name: Install
+        run: uv sync --locked --python 3.14
       - name: Lint and format
         run: |
-          uvx ruff@0.16.10 check bin/titan tests
-          uvx ruff@0.16.10 format --check bin/titan tests
+          uv run ruff check .
+          uv run ruff format --check .
       - name: Type check
-        run: uvx --python 3.14 --with 'psycopg[binary]' mypy@1.18.2 --strict --scripts-are-modules bin/titan
+        run: uv run mypy
       - name: Test
-        run: uv run --python 3.14 --with pytest --with 'psycopg[binary]' pytest tests -q
+        run: uv run pytest -q
+      - name: Installs as a tool
+        run: |
+          uv tool install --python 3.14 .
+          titan --version
