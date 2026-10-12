@@ -1,6 +1,16 @@
-# Render Blueprint: one web service and a daily clean-up job. Both use a
-# database on a (shared) Render Postgres instance; set DATABASE_URL to its
-# internal URL when Render prompts for it. See "Deploy" in the README.
+# Render Blueprint: one web service and a daily clean-up job.
+#
+# Settings come from two env groups that titan makes before this Blueprint
+# is deployed, so the first deploy already has every value it needs:
+#
+# - titan: shared by every Titan app (debug off, the Python version, hosts
+#   and origins under the parent domain, the SMTP relay).
+# - {{ project_slug }}: this app's own (DATABASE_URL, DJANGO_SECRET_KEY, the mail
+#   key and sender, SITE_URL).
+#
+# Both are referenced here, not declared, so a Blueprint sync never
+# overwrites them. To override a shared value for this app only, set it on
+# the service: a service's own env vars win over its groups'.
 #
 # uv is pinned: the build runs with the service's secrets in its environment,
 # so it installs a known version, and uv then installs exactly what uv.lock lists.
@@ -20,24 +30,8 @@ services:
     # (/healthz also reads the database, for uptime monitors.)
     healthCheckPath: /livez
     envVars:
-      - key: DATABASE_URL
-        sync: false
-      - key: DJANGO_SECRET_KEY
-        generateValue: true
-      - key: DJANGO_DEBUG
-        value: "0"
-      # Major.minor only, so Render uses its latest prebuilt 3.14.
-      - key: PYTHON_VERSION
-        value: "3.14"
-      # The SMTP relay that sends sign-in emails. Nobody can sign in without it.
-      - key: EMAIL_HOST
-        sync: false
-      - key: EMAIL_HOST_USER
-        sync: false
-      - key: EMAIL_HOST_PASSWORD
-        sync: false
-      - key: DEFAULT_FROM_EMAIL
-        sync: false
+      - fromGroup: titan
+      - fromGroup: {{ project_slug }}
 
   # Deletes expired idempotency records (24 hours) and sign-in requests (15 minutes).
   - type: cron
@@ -51,11 +45,5 @@ services:
       uv run --no-sync python manage.py purge_idempotency_records --commit &&
       uv run --no-sync python manage.py purge_sign_in_requests --commit
     envVars:
-      - key: DATABASE_URL
-        sync: false
-      - key: DJANGO_SECRET_KEY
-        sync: false
-      - key: DJANGO_DEBUG
-        value: "0"
-      - key: PYTHON_VERSION
-        value: "3.14"
+      - fromGroup: titan
+      - fromGroup: {{ project_slug }}

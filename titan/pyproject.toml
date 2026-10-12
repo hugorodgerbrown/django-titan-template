@@ -1,0 +1,62 @@
+# titan: provision and launch a Titan app on Render, shared-db and Resend.
+#
+# Installed once per machine, run from anywhere:
+#
+#   uv tool install "git+https://github.com/hugorodgerbrown/django-titan-template#subdirectory=titan"
+#   uv tool upgrade titan
+#
+# It lives in the template repo (outside template/, so copier never copies
+# it into a generated app) because the two change together: titan knows the
+# names and env groups the template's render.yaml uses.
+[project]
+name = "titan"
+version = "2.0.0"
+description = "Provision and launch a Titan app on Render, shared-db and Resend"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "psycopg[binary]>=3.2,<4",
+    "questionary>=2.1,<3",
+    "rich>=14,<15",
+]
+
+[project.scripts]
+titan = "titan.cli:main"
+
+[dependency-groups]
+dev = [
+    "mypy>=1.18,<2",
+    "pytest>=8.4,<9",
+    "ruff>=0.16,<0.17",
+]
+
+[build-system]
+requires = ["uv_build>=0.9,<0.14"]
+build-backend = "uv_build"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "S", "SIM", "C4", "PT", "PIE", "RET", "RUF", "T20", "D"]
+ignore = ["D105", "D107"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+# A command-line tool: it runs git, gh, op and uvx.
+"src/titan/**" = ["S603", "S607"]
+"tests/**" = ["S101", "S105", "S106"]
+
+[tool.mypy]
+strict = true
+files = ["src", "tests"]
+
+[[tool.mypy.overrides]]
+module = ["questionary.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

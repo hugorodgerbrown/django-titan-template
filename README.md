@@ -25,43 +25,25 @@ and who may connect), and the Render region.
 
 ## Provision and deploy a new app
 
-`bin/titan` sets up everything around a new app: the GitHub repo, the
-Render services, a role and database on shared-db, a sending-only Resend
-key, the env vars and the custom domain. Each app is `<slug>.ultraniche.ai`
-and sends from `<slug>@mail.ultraniche.ai`.
+[titan](titan/) sets up everything around a new app and takes it live:
+the GitHub repo, a role and database on shared-db, a sending-only Resend
+key, the shared and per-app env groups, the Render services and the
+custom domain. Each app is `<slug>.ultraniche.ai` and sends from
+`<slug>@mail.ultraniche.ai`.
 
 ```bash
-bin/titan new resort-planner             # plan: reads every account, changes nothing
-bin/titan new resort-planner --commit    # generate, push, then stops for the Blueprint
-#   → deploy the Blueprint from the printed link (leave prompted values blank)
-bin/titan new resort-planner --commit    # database, Resend key, env vars, domain, deploy
-bin/titan golive resort-planner --commit # prints the CNAME, waits for DNS, sets SITE_URL
+uv tool install "git+https://github.com/hugorodgerbrown/django-titan-template#subdirectory=titan"
+titan new tally      # generate the repo and push it to GitHub; nothing on Render
+# ...work on it...
+titan deploy tally   # set it up on Render and deploy it
+titan golive tally   # after the CNAME: the custom domain
 ```
 
-An app with no scheduled jobs can leave the `<slug>-purge` cron job out of
-its `render.yaml`; `titan` then provisions the web service alone.
+Plain `titan` asks what to do. Every command shows the plan and asks before
+changing anything.
 
-Two steps stay manual because neither provider has an API for them:
-creating the Blueprint in Render (one click) and adding the CNAME in
-Squarespace at go-live (one record). Every run is safe to repeat; it does
-only what is still missing. Until go-live the app runs on its onrender.com
-address, so it can be tried before the domain points at it.
-
-It needs `uv`, `gh` (signed in) and these three keys. `titan` asks for each
-one (the input is hidden) unless `~/.config/titan/env` holds it, and never
-reads them from the environment, so an app's own keys exported in your
-shell can't be picked up by mistake. All three are account-wide, not per
-app:
-
-| Setting | What |
-|---|---|
-| `RENDER_API_KEY` | Render API key |
-| `RESEND_API_KEY` | A **full-access** Resend key; it creates each app's sending-only key |
-| `TITAN_DB_ADMIN_URL` | shared-db's External Database URL. shared-db only accepts its allowlisted IP addresses, so run `titan` from one of them |
-
-`TITAN_DOMAIN`, `TITAN_MAIL_DOMAIN` and `TITAN_GITHUB_OWNER` (environment or
-the config file) override the defaults. Secrets go from each provider straight into Render and are never
-printed. Tests: `uv run --with pytest --with 'psycopg[binary]' pytest tests`.
+It reads its three keys from a 1Password item named `Titan`. Install,
+keys, env groups and every command are in [titan/README.md](titan/README.md).
 
 ## Keep a project up to date
 
