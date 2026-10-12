@@ -297,15 +297,19 @@ def _app_values(ctx: Context, plan: Plan) -> None:
     if not ctx.value("DEFAULT_FROM_EMAIL"):
         wanted["DEFAULT_FROM_EMAIL"] = lambda: ctx.app.from_email
     title = f"App env group {ctx.app.group!r}"
+    # Keys that belong in the shared group (or on the service) make it
+    # ambiguous which value wins; say so rather than delete anything.
+    strays = sorted(set(ctx.group_env) - set(APP_KEYS))
+    note = f"also holds {', '.join(strays)}: move or delete them in Render" if strays else ""
     if not wanted:
-        plan.add(title, f"from {ctx.value('DEFAULT_FROM_EMAIL')}")
+        plan.add(title, note or f"from {ctx.value('DEFAULT_FROM_EMAIL')}")
         return
 
     def write(_: Progress) -> None:
         for key, make in wanted.items():
             ctx.set_value(key, make())
 
-    plan.add(f"{title}: set {', '.join(wanted)}", run=write)
+    plan.add(f"{title}: set {', '.join(wanted)}", note, run=write)
 
 
 def _after_blueprint(ctx: Context) -> Plan:

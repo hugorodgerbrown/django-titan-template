@@ -344,3 +344,14 @@ def test_an_older_apps_service_values_are_copied_into_its_group(make_ctx: Any) -
     assert render.envs["srv-web"]["DATABASE_URL"] == url
     # Writing DEFAULT_FROM_EMAIL and linking the new group are real changes: one deploy.
     assert render.deploys == ["srv-web", "crn-cron"]
+
+
+def test_keys_that_belong_elsewhere_in_the_app_group_are_reported(make_ctx: Any) -> None:
+    """A shared key left in the app's group is named, and left alone."""
+    render = FakeRender()
+    render.create_env_group("tally", "tea-1", {"EMAIL_PORT": "587", "SECRET_KEY": "x"})
+    plan = plan_new(make_ctx(render=render))
+    step = next(s for s in plan.steps if s.title.startswith("App env group"))
+    assert step.detail == "also holds EMAIL_PORT, SECRET_KEY: move or delete them in Render"
+    run(plan)
+    assert render.group_values("tally")["EMAIL_PORT"] == "587"
