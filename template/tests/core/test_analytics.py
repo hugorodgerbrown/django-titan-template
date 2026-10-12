@@ -6,7 +6,15 @@ import pytest
 from django.test import Client, RequestFactory
 from django.urls import resolve, reverse
 
-from apps.core.analytics import ORIGIN, SCRIPT, analytics, counted_path, csp_sources
+from apps.core.analytics import (
+    ORIGIN,
+    SCRIPT,
+    SIGNED_UP,
+    analytics,
+    counted_path,
+    csp_sources,
+    mark,
+)
 from apps.public.pages import page_as_markdown
 
 DOMAIN = "example.ultraniche.ai"
@@ -40,6 +48,7 @@ def test_every_page_has_the_tag_once(signed_in: Client, settings: Any, url_name:
     tag = f'<script async data-domain="{DOMAIN}" src="{SCRIPT}"></script>'
     assert html.count(SCRIPT) == 1
     assert tag in html
+    assert "js/analytics.js" in html
 
 
 @pytest.mark.django_db
@@ -79,3 +88,12 @@ def test_privacy_notice_names_fivebar_only_while_on(settings: Any) -> None:
     markdown = page_as_markdown("privacy")["markdown"]
     assert "## Visitor counts" in markdown
     assert "fivebar" in markdown
+
+
+def test_mark(settings: Any) -> None:
+    """An event's fragment is added only while on, and never over another fragment."""
+    settings.FIVEBAR_DOMAIN = ""
+    assert mark("/app/", SIGNED_UP) == "/app/"
+    settings.FIVEBAR_DOMAIN = DOMAIN
+    assert mark("/app/", SIGNED_UP) == "/app/#signed-up"
+    assert mark("/app/#top", SIGNED_UP) == "/app/#top"

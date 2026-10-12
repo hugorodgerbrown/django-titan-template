@@ -9,7 +9,12 @@ script counts each page by itself.
 A page whose address holds a secret or an id (an emailed sign-in link's
 token, a record's uuid) is counted under its route instead, with the
 values named, e.g. ``/signin/link/:token/``, so nothing private reaches
-fivebar. See docs/decisions/visitors-are-counted-by-fivebar.md.
+fivebar.
+
+fivebar counts pages by itself. An event (an account's first sign-in) is
+marked by ending a redirect's address with a fragment, which
+``static/js/analytics.js`` sends as the event and takes out of the address.
+See docs/decisions/visitors-are-counted-by-fivebar.md.
 """
 
 from __future__ import annotations
@@ -27,6 +32,10 @@ if TYPE_CHECKING:
 ORIGIN = "https://fiveb.ar"
 SCRIPT = f"{ORIGIN}/js/tally.js"
 
+# The events, by the fragment that marks them. Keep in step with
+# static/js/analytics.js: EVENTS.
+SIGNED_UP = "#signed-up"  # "Sign up": an account's first sign-in
+
 # A route's converters, "<str:token>" or "<token>": each becomes ":token".
 _CONVERTER = re.compile(r"<(?:\w+:)?(\w+)>")
 
@@ -34,6 +43,17 @@ _CONVERTER = re.compile(r"<(?:\w+:)?(\w+)>")
 def csp_sources(domain: str) -> list[str]:
     """The sources script-src and connect-src add for fivebar: none while it is off."""
     return [ORIGIN] if domain else []
+
+
+def mark(url: str, event: str) -> str:
+    """Return ``url`` marked with an event's fragment, while fivebar is on.
+
+    Off, or when the address already has a fragment of its own, it is
+    returned as it is: the event is lost rather than the fragment.
+    """
+    if not settings.FIVEBAR_DOMAIN or "#" in url:
+        return url
+    return url + event
 
 
 def counted_path(request: HttpRequest) -> str:
