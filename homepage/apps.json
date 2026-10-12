@@ -1,0 +1,41 @@
+{
+  "opened": 0,
+  "titan": [
+    {
+      "name": "Shift",
+      "colour": "#C2410C",
+      "tagline": "Your shift rota as a calendar. Tell your AI the pattern once.",
+      "url": "https://shift.ultraniche.ai",
+      "story": null
+    },
+    {"name": "Flight", "colour": "#1D5FD1", "tagline": null, "url": null, "story": null},
+    {"name": "Pack", "colour": "#2F7A57", "tagline": null, "url": null, "story": null},
+    {"name": "Cook", "colour": "#B91C1C", "tagline": null, "url": null, "story": null},
+    {"name": "Checklist", "colour": "#6D28D9", "tagline": null, "url": null, "story": null},
+    {"name": "Maintain", "colour": "#0E7490", "tagline": null, "url": null, "story": null},
+    {"name": "Last", "colour": "#A16207", "tagline": null, "url": null, "story": null},
+    {"name": "Score", "colour": "#BE185D", "tagline": null, "url": null, "story": null},
+    {"name": "Shop", "colour": "#15803D", "tagline": null, "url": null, "story": null},
+    {"name": "Clock", "colour": "#4338CA", "tagline": null, "url": null, "story": null}
+  ],
+  "earlier": [
+    {
+      "name": "Tally",
+      "colour": "#1F3FD8",
+      "tagline": "Interval workouts, run hands-free on your phone.",
+      "url": "https://tally.ultraniche.ai"
+    },
+    {
+      "name": "Gondola",
+      "colour": "#2563EB",
+      "tagline": "Say which resort you’ll be at, and meet your friends on the mountain.",
+      "url": "https://gondola.ultraniche.ai"
+    },
+    {
+      "name": "Traintrackr",
+      "colour": "#0B5D3B",
+      "tagline": "Live UK train times, right inside your AI chat.",
+      "url": "https://traintrackr.live"
+    }
+  ]
+}
