@@ -22,8 +22,11 @@ waits for Render to verify the domain, then sets SITE_URL and
 DJANGO_ALLOWED_HOSTS, deploys and checks /healthz on the real address.
 
 Secrets go from the provider's response straight into Render; nothing
-prints them. Settings come from the environment, or ~/.config/titan/env
-(KEY=value lines):
+prints them. The three keys below are asked for, hidden, on each run, unless
+~/.config/titan/env (KEY=value lines) has them; they are never read from the
+environment, so an app's own keys in your shell can't leak in. All three
+are account-wide, not per app. The TITAN_* overrides may also be set in the
+environment:
 
     RENDER_API_KEY        Render API key (Account settings > API keys)
     RESEND_API_KEY        a FULL-ACCESS Resend key: it creates the per-app keys
@@ -41,6 +44,7 @@ Needs `gh` (signed in) and `uvx` for `new`'s first step.
 from __future__ import annotations
 
 import argparse
+import getpass
 import json
 import os
 import re
@@ -60,6 +64,13 @@ from typing import Any
 
 TEMPLATE = "gh:hugorodgerbrown/django-titan-template"
 CONFIG_FILE = Path.home() / ".config" / "titan" / "env"
+# Asked for (hidden) unless the config file has them; never read from the
+# environment. All three are account-wide, not per app.
+SECRET_KEYS = {
+    "RENDER_API_KEY": "Render API key",
+    "RESEND_API_KEY": "Resend full-access API key",
+    "TITAN_DB_ADMIN_URL": "shared-db External Database URL",
+}
 RENDER_API = "https://api.render.com/v1"
 RESEND_API = "https://api.resend.com"
 SLUG = re.compile(r"^[a-z][a-z0-9-]*$")
@@ -83,7 +94,7 @@ class TitanError(Exception):
 
 @dataclass(frozen=True)
 class Settings:
-    """Credentials and defaults, from the environment or the config file."""
+    """Credentials and defaults: keys asked for or from the config file."""
 
     render_api_key: str
     resend_api_key: str
@@ -94,18 +105,31 @@ class Settings:
     db_internal_host: str = ""
 
     @classmethod
-    def load(cls, environ: dict[str, str] | None = None, path: Path | None = None) -> Settings:
-        """Read settings; the environment wins over the config file."""
+    def load(
+        cls,
+        environ: dict[str, str] | None = None,
+        path: Path | None = None,
+        ask: Callable[[str], str] | None = None,
+    ) -> Settings:
+        """Read the keys from the config file or ask for them; never from the environment.
+
+        A shell inside an app's checkout often exports that app's own
+        RESEND_API_KEY or DATABASE_URL-style values, so the keys are only
+        ever typed in (hidden) or read from the user-level config file.
+        The non-secret TITAN_* overrides still come from the environment.
+        """
         path = path or CONFIG_FILE
+        ask = ask or getpass.getpass
         values = read_env_file(path)
-        values.update(os.environ if environ is None else environ)
-        missing = [
-            k
-            for k in ("RENDER_API_KEY", "RESEND_API_KEY", "TITAN_DB_ADMIN_URL")
-            if not values.get(k)
-        ]
-        if missing:
-            raise TitanError(f"Set {', '.join(missing)} in the environment or {path}.")
+        environ = dict(os.environ if environ is None else environ)
+        for key in SECRET_KEYS:
+            environ.pop(key, None)
+        values.update(environ)
+        for key, label in SECRET_KEYS.items():
+            if not values.get(key):
+                values[key] = ask(f"{label} ({key}): ").strip()
+            if not values[key]:
+                raise TitanError(f"No {key} given.")
         return cls(
             render_api_key=values["RENDER_API_KEY"],
             resend_api_key=values["RESEND_API_KEY"],

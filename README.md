@@ -47,8 +47,11 @@ Squarespace at go-live (one record). Every run is safe to repeat; it does
 only what is still missing. Until go-live the app runs on its onrender.com
 address, so it can be tried before the domain points at it.
 
-It needs `uv`, `gh` (signed in) and these settings, in the environment or
-`~/.config/titan/env`:
+It needs `uv`, `gh` (signed in) and these three keys. `titan` asks for each
+one (the input is hidden) unless `~/.config/titan/env` holds it, and never
+reads them from the environment, so an app's own keys exported in your
+shell can't be picked up by mistake. All three are account-wide, not per
+app:
 
 | Setting | What |
 |---|---|
@@ -56,8 +59,8 @@ It needs `uv`, `gh` (signed in) and these settings, in the environment or
 | `RESEND_API_KEY` | A **full-access** Resend key; it creates each app's sending-only key |
 | `TITAN_DB_ADMIN_URL` | shared-db's External Database URL. shared-db only accepts its allowlisted IP addresses, so run `titan` from one of them |
 
-`TITAN_DOMAIN`, `TITAN_MAIL_DOMAIN` and `TITAN_GITHUB_OWNER` override the
-defaults. Secrets go from each provider straight into Render and are never
+`TITAN_DOMAIN`, `TITAN_MAIL_DOMAIN` and `TITAN_GITHUB_OWNER` (environment or
+the config file) override the defaults. Secrets go from each provider straight into Render and are never
 printed. Tests: `uv run --with pytest --with 'psycopg[binary]' pytest tests`.
 
 ## Keep a project up to date

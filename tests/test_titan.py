@@ -228,25 +228,49 @@ def test_blueprint_link_points_at_the_repo(app: Any) -> None:
 # ---------------------------------------------------------------- settings
 
 
-def test_settings_come_from_the_file_and_the_environment_wins(tmp_path: Path) -> None:
-    """Settings come from the file and the environment wins."""
+def never_asked(prompt: str) -> str:
+    """Fail the test if titan prompts."""
+    raise AssertionError(f"asked: {prompt}")
+
+
+def test_keys_come_from_the_file_never_the_environment(tmp_path: Path) -> None:
+    """The file's keys win; an app's key exported in the shell is ignored."""
     path = tmp_path / "env"
     path.write_text(
         "# titan\nRENDER_API_KEY=from-file\nRESEND_API_KEY='re_x'\nTITAN_DB_ADMIN_URL=postgresql://h/db\n"
     )
     loaded = titan.Settings.load(
-        {"RENDER_API_KEY": "from-env", "TITAN_DOMAIN": "example.com"}, path
+        {"RENDER_API_KEY": "from-env", "TITAN_DOMAIN": "example.com"}, path, never_asked
     )
-    assert loaded.render_api_key == "from-env"
+    assert loaded.render_api_key == "from-file"
     assert loaded.resend_api_key == "re_x"
     assert loaded.domain == "example.com"
     assert loaded.mail_domain == "mail.ultraniche.ai"
 
 
-def test_missing_settings_are_named(tmp_path: Path) -> None:
-    """Missing settings are named."""
-    with pytest.raises(titan.TitanError, match="RESEND_API_KEY, TITAN_DB_ADMIN_URL"):
-        titan.Settings.load({"RENDER_API_KEY": "x"}, tmp_path / "absent")
+def test_missing_keys_are_asked_for_not_read_from_the_environment(tmp_path: Path) -> None:
+    """With no config file each key is asked for, even if the shell exports it."""
+    asked: list[str] = []
+
+    def ask(prompt: str) -> str:
+        asked.append(prompt)
+        return f" typed-{len(asked)} "
+
+    loaded = titan.Settings.load(
+        {"RESEND_API_KEY": "re_some_apps_sending_key"}, tmp_path / "absent", ask
+    )
+    assert [p.split(" (")[1].rstrip("): ") for p in asked] == list(titan.SECRET_KEYS)
+    assert (loaded.render_api_key, loaded.resend_api_key, loaded.db_admin_url) == (
+        "typed-1",
+        "typed-2",
+        "typed-3",
+    )
+
+
+def test_a_blank_answer_stops_the_run(tmp_path: Path) -> None:
+    """An empty answer is an error naming the key."""
+    with pytest.raises(titan.TitanError, match="No RENDER_API_KEY given"):
+        titan.Settings.load({}, tmp_path / "absent", lambda prompt: "")
 
 
 # ---------------------------------------------------------------- new
@@ -506,10 +530,9 @@ def test_main_reports_errors_and_exits_non_zero(
 ) -> None:
     """Main reports errors and exits non zero."""
     monkeypatch.setattr(titan, "CONFIG_FILE", Path("/nonexistent"))
-    for key in ("RENDER_API_KEY", "RESEND_API_KEY", "TITAN_DB_ADMIN_URL"):
-        monkeypatch.delenv(key, raising=False)
+    monkeypatch.setattr(titan.getpass, "getpass", lambda prompt: "")
     assert titan.main(["new", "tally"]) == 1
-    assert "Set RENDER_API_KEY" in capsys.readouterr().err
+    assert "No RENDER_API_KEY given" in capsys.readouterr().err
 
 
 def test_render_refuses_a_same_named_service_from_another_repo() -> None:
