@@ -27,6 +27,9 @@ by hand at https://fiveb.ar/sites.
   note's uuid) is counted under its route, `data-path="/signin/link/:token/"`,
   worked out from the URL resolver, so no secret or id reaches fivebar and
   a new route needs nothing added.
+- An event is marked by the server with a fragment on a redirect, read by
+  a static script, never by an inline script (the CSP forbids them) or a
+  flag in the session (a page cached by the service worker would replay it).
 - The privacy notice names fivebar, and what it receives, only while it is
   on.
 
@@ -36,10 +39,12 @@ by hand at https://fiveb.ar/sites.
   is added in fivebar.
 - Offline, the script and its counts fail quietly; the service worker
   leaves other origins to the browser.
-- Events (a sign-up, a purchase) are each app's to add, with
-  `tally('Name', {...})` or `data-tally` attributes; see
-  https://fiveb.ar/docs/events. Call `tally` directly once the async script
-  has loaded, and push onto `window.tally` as a queue before then.
+- One event ships: "Sign up", an account's first sign-in, so a new app can
+  check it is counting. The sign-in redirect ends in `#signed-up`, which
+  `static/js/analytics.js` sends and takes out of the address, so a reload
+  or a copied link doesn't count again. More events are each app's to add:
+  a fragment in `EVENTS` (both `apps/core/analytics.py` and the script), or
+  `data-tally` on anything clicked; see https://fiveb.ar/docs/events.
 - Error responses are counted as ordinary pages; Safari needs
   `data-status` on the tag to tell them apart, which the template doesn't
   set.
