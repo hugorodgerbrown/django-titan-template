@@ -1,8 +1,12 @@
-"""What `new` and `golive` still have to do for an app, read from the accounts.
+"""What `new`, `deploy` and `golive` still have to do for an app, read from the accounts.
 
-`new`, in order: the GitHub repo; the shared ``titan`` env group; the
-app's role and database on shared-db; its sending-only Resend key; the
-rest of its own ``<slug>`` group. All of that exists before the Blueprint
+`new` only makes the repo: it generates the app from the template and
+pushes it to GitHub, so there is something to work on. Nothing touches
+Render.
+
+`deploy`, in order: the GitHub repo (it must exist); the shared ``titan``
+env group; the app's role and database on shared-db; its sending-only
+Resend key; the rest of its own ``<slug>`` group. All of that exists before the Blueprint
 is deployed, so the Blueprint's first deploy has every setting it needs.
 Then it waits for the Blueprint, links the groups if Render did not, adds
 the custom domain, deploys whatever changed and checks /healthz.
@@ -131,19 +135,41 @@ def service_url(service: dict[str, Any] | None) -> str:
 
 
 def plan_new(ctx: Context) -> Plan:
-    """Read every account and work out what `new` still has to do."""
-    app, render = ctx.app, ctx.render
+    """Generate the app from the template and push it to GitHub; Render is not touched."""
+    app = ctx.app
     plan = Plan()
-
+    deploy = f"Next: work on it, then `titan deploy {app.slug}` sets it up on Render."
     if ctx.github.repo_exists(app.repo):
         plan.add(f"GitHub repo {app.repo}")
-    else:
-        answers = {"project_name": app.name, "project_slug": app.slug, **ctx.answers}
-        plan.add(
-            f"Generate {app.slug} from the template and push to {app.repo}",
-            f"into {ctx.workdir / app.slug}",
-            run=lambda _: ctx.github.generate(answers, app.repo, ctx.workdir),
+        plan.finish = deploy
+        return plan
+    answers = {"project_name": app.name, "project_slug": app.slug, **ctx.answers}
+    plan.add(
+        f"Generate {app.slug} from the template",
+        f"into {ctx.workdir / app.slug}",
+        run=lambda _: ctx.github.generate(answers, ctx.workdir),
+    )
+    plan.add(
+        f"Create the private repo {app.repo} and push the first commit",
+        run=lambda _: ctx.github.publish(app.repo, ctx.workdir / app.slug),
+    )
+    plan.finish = f"{ctx.workdir / app.slug} is ready. {deploy}"
+    return plan
+
+
+# ---------------------------------------------------------------- deploy
+
+
+def plan_deploy(ctx: Context) -> Plan:
+    """Read every account and work out what `deploy` still has to do."""
+    app, render = ctx.app, ctx.render
+    if not ctx.github.repo_exists(app.repo):
+        raise TitanError(
+            f"No GitHub repo {app.repo}: Render builds from GitHub. "
+            f"Run `titan new {app.slug}`, or push the repo, first."
         )
+    plan = Plan()
+    plan.add(f"GitHub repo {app.repo}", "Render builds main from here")
 
     ctx.read_services()
     ctx.group = render.env_group(app.group, ctx.owner_id)
@@ -434,7 +460,7 @@ def plan_golive(ctx: Context) -> Plan:
     web = ctx.web
     if web is None:
         raise TitanError(
-            f"No Render service {app.web_service!r}; run `titan new {app.slug}` first."
+            f"No Render service {app.web_service!r}; run `titan deploy {app.slug}` first."
         )
     target = urllib.parse.urlsplit(service_url(web)).hostname or f"{app.slug}.onrender.com"
     label = app.domain.removesuffix("." + app.settings.domain)

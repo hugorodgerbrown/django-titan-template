@@ -52,18 +52,20 @@ def test_status_changes_nothing(accounts: FakeRender, capsys: pytest.CaptureFixt
     assert accounts.writes == []
 
 
-def test_new_without_a_terminal_only_plans(
+def test_deploy_without_a_terminal_only_plans(
     accounts: FakeRender, capsys: pytest.CaptureFixture[str]
 ) -> None:
     """Without --commit and no one to ask, nothing changes."""
-    assert cli.main(["new", "tally"]) == 0
+    assert cli.main(["deploy", "tally"]) == 0
     assert "Nothing changed." in capsys.readouterr().out
     assert accounts.writes == []
 
 
-def test_new_with_commit_applies(accounts: FakeRender, capsys: pytest.CaptureFixture[str]) -> None:
+def test_deploy_with_commit_applies(
+    accounts: FakeRender, capsys: pytest.CaptureFixture[str]
+) -> None:
     """--commit runs the plan to the end."""
-    assert cli.main(["new", "tally", "--commit"]) == 0
+    assert cli.main(["deploy", "tally", "--commit"]) == 0
     assert "titan golive tally" in capsys.readouterr().out
     assert "tally" in accounts.groups
 
@@ -135,26 +137,37 @@ def test_interactive_new_asks_for_the_app_then_applies(
     monkeypatch.setattr(cli, "Ask", lambda: ask)
     monkeypatch.setattr("titan.cli.sys.stdin.isatty", lambda: True)
     monkeypatch.setattr("titan.cli.Console.is_terminal", property(lambda self: True))
-    accounts.services.clear()
-    accounts.blueprint_after = 2
-    # The fake's services are Tally's; this app is ski-trips, so answer as Render would.
-    monkeypatch.setattr(cli, "plan_new", lambda ctx: _tally_plan(ctx))
     assert cli.main([]) == 0
     assert ask.asked[0] == "What do you want to do?"
     assert ask.asked[-1].startswith("Apply ")
     assert github.generated[0]["project_slug"] == "ski-trips"
     assert github.generated[0]["include_mcp"] == "false"
     assert github.generated[0]["theme_colour"] == "#1d4ed8"
+    assert github.published[0][0] == "hugorodgerbrown/ski-trips"
+    assert "titan deploy ski-trips" in capsys.readouterr().out
+    assert accounts.writes == []
 
 
-def _tally_plan(ctx: Any) -> Any:
-    """Just the generation step of `new`, for the app the person described."""
-    from titan.steps import Plan
+def test_new_with_commit_takes_a_description(
+    accounts: FakeRender, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Scripted: the flags stand in for the questions."""
+    github = FakeGitHub(exists=False)
+    monkeypatch.setattr(cli, "GitHub", lambda: github)
+    args = ["new", "tally", "--commit", "--description", "Counts", "--dir", str(tmp_path)]
+    assert cli.main(args) == 0
+    assert github.generated[0]["description"] == "Counts"
+    assert github.published == [("hugorodgerbrown/tally", tmp_path / "tally")]
 
-    plan = Plan()
-    answers = {"project_name": ctx.app.name, "project_slug": ctx.app.slug, **ctx.answers}
-    plan.add("Generate", run=lambda _: ctx.github.generate(answers, ctx.app.repo, ctx.workdir))
-    return plan
+
+def test_interactive_deploy_offers_the_current_checkout(tmp_path: Path) -> None:
+    """Inside a Titan app's checkout, its slug is the default; elsewhere it is typed."""
+    (tmp_path / "tally").mkdir()
+    (tmp_path / "tally" / "render.yaml").write_text("services: []\n")
+    inside: Any = ScriptedAsk(None)
+    elsewhere: Any = ScriptedAsk("gondola")
+    assert cli.ask_app_to_deploy(inside, tmp_path / "tally") == "tally"
+    assert cli.ask_app_to_deploy(elsewhere, tmp_path) == "gondola"
 
 
 def test_interactive_golive_picks_an_existing_app(

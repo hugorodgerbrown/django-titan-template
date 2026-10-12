@@ -1,8 +1,8 @@
 # titan
 
-Sets up everything around a new Titan app, and takes it live: the GitHub
-repo, the Render services, a role and database on shared-db, a
-sending-only Resend key, the env groups and the custom domain.
+Starts a new Titan app, and later takes it live: the GitHub repo, then the
+Render services, a role and database on shared-db, a sending-only Resend
+key, the env groups and the custom domain.
 
 ## Install
 
@@ -17,22 +17,32 @@ keys live in 1Password.
 ## Use
 
 ```sh
-titan                 # asks what to do, shows the plan, asks before changing anything
-titan status gondola  # what exists and what is missing; changes nothing
-titan new gondola     # plan, then "Apply 5 changes?"
-titan golive gondola  # after the CNAME: verify, set SITE_URL, deploy, check
+titan new tally       # generate the repo and push it to GitHub; nothing on Render
+                      # ...work on it, push to main...
+titan deploy tally    # set it up on Render and deploy it
+titan golive tally    # after the CNAME: verify, set SITE_URL, deploy, check
+titan status tally    # what exists and what is missing; changes nothing
+titan                 # asks which of these, then asks about the app
 ```
 
-`--commit` applies without asking and `--plan` only shows the plan. Every
-run reads the accounts first and does only what is missing, so a failed
-or interrupted run is fixed by running it again.
+Every command reads the accounts first, shows the whole plan, and asks
+before changing anything. `--commit` applies without asking and `--plan`
+only shows the plan. Each step does only what is missing, so a failed or
+interrupted run is fixed by running it again, and a run on a finished app
+says "Nothing to do."
 
-`new` does everything up front, including both env groups, so the
-Blueprint's first deploy has all its settings. It then opens the Blueprint
-link in your browser and waits while you click Deploy Blueprint. It's the
-one step Render offers no API for. Then it links the groups (if the
-Blueprint didn't), adds the domain, deploys anything that changed, and
-checks `/healthz`.
+`new` runs copier into `<dir>/<slug>` (the current directory unless you
+pass `--dir`), commits the result and pushes it to a private GitHub repo.
+`--name` and `--description` answer copier's questions; the rest take the
+template's defaults. It never touches Render, shared-db or Resend.
+
+`deploy` needs the repo on GitHub, because Render builds `main` from
+there, never from your laptop. It makes everything up front, including
+both env groups, so the Blueprint's first deploy has all its settings.
+It then opens the Blueprint link in your browser and waits while you click
+Deploy Blueprint. It's the one step Render offers no API for. Then it
+links the groups (if the Blueprint didn't), adds the domain, deploys
+anything that changed, and checks `/healthz`.
 
 ## Keys
 

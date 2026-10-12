@@ -185,21 +185,33 @@ def test_blueprint_declares_reads_render_yaml() -> None:
     assert github.blueprint_declares("o/tally", "tally-purge")
 
 
-def test_generate_passes_the_answers_and_an_absolute_source(
+def test_generate_passes_the_answers_and_commits(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Copier gets every answer; gh gets the same absolute path it runs in."""
+    """Copier gets every answer, then the checkout is committed; nothing is pushed."""
     monkeypatch.setattr("titan.providers.shutil.which", lambda name: f"/bin/{name}")
     monkeypatch.chdir(tmp_path)
     run = Recorder()
-    target = GitHub(run).generate(
-        {"project_name": "Tally", "project_slug": "tally"}, "o/tally", Path(".")
-    )
+    target = GitHub(run).generate({"project_name": "Tally", "project_slug": "tally"}, Path("."))
     assert target == tmp_path / "tally"
     copier, _ = run.calls[0]
     assert copier[:5] == ["uvx", "copier", "copy", "--trust", "--defaults"]
     assert "project_name=Tally" in copier
-    gh_args, gh_cwd = run.calls[-1]
+    assert [args[:2] for args, _ in run.calls[1:]] == [["git", "add"], ["git", "commit"]]
+    assert all(cwd == tmp_path / "tally" for _, cwd in run.calls[1:])
+
+
+def test_publish_creates_the_private_repo_from_the_checkout(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The repo is created from, and pushed from, the absolute checkout path."""
+    monkeypatch.setattr("titan.providers.shutil.which", lambda name: f"/bin/{name}")
+    run = Recorder()
+    GitHub(run).publish("o/tally", tmp_path / "tally")
+    ((gh_args, gh_cwd),) = run.calls
+    assert gh_args[:4] == ["gh", "repo", "create", "o/tally"]
+    assert "--private" in gh_args
+    assert "--push" in gh_args
     assert gh_args[gh_args.index("--source") + 1] == str(tmp_path / "tally")
     assert gh_cwd == tmp_path / "tally"
 
@@ -208,7 +220,7 @@ def test_generate_reports_a_failed_command(tmp_path: Path, monkeypatch: pytest.M
     """A failing command stops generation with its last lines."""
     monkeypatch.setattr("titan.providers.shutil.which", lambda name: f"/bin/{name}")
     with pytest.raises(TitanError, match="uvx copier copy … failed: boom"):
-        GitHub(Recorder(code=1)).generate({"project_slug": "tally"}, "o/tally", tmp_path)
+        GitHub(Recorder(code=1)).generate({"project_slug": "tally"}, tmp_path)
 
 
 def test_render_domains_deploys_and_workspaces() -> None:

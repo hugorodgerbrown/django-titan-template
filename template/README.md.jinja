@@ -69,7 +69,7 @@ Also: [security](docs/security.md), [performance](docs/performance.md),
 
 `render.yaml` is a Blueprint for the web service and a daily clean-up job.
 [titan](https://github.com/hugorodgerbrown/django-titan-template/tree/main/titan)
-sets everything up: run `titan` and pick this app. Both services read their
+sets everything up: run `titan deploy {{ project_slug }}` once the repo is on GitHub. Both services read their
 settings from two env groups, `titan` (shared by every Titan app) and
 `{{ project_slug }}` (this app's own). titan makes both before the Blueprint
 is deployed.

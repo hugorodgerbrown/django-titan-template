@@ -33,8 +33,14 @@ custom domain. Each app is `<slug>.ultraniche.ai` and sends from
 
 ```bash
 uv tool install "git+https://github.com/hugorodgerbrown/django-titan-template#subdirectory=titan"
-titan            # asks what to do, shows the plan, asks before changing anything
+titan new tally      # generate the repo and push it to GitHub; nothing on Render
+# ...work on it...
+titan deploy tally   # set it up on Render and deploy it
+titan golive tally   # after the CNAME: the custom domain
 ```
+
+Plain `titan` asks what to do. Every command shows the plan and asks before
+changing anything.
 
 It reads its three keys from a 1Password item named `Titan`. Install,
 keys, env groups and every command are in [titan/README.md](titan/README.md).

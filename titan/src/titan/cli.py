@@ -1,11 +1,12 @@
 """titan's command line: interactive by default, scriptable with arguments.
 
     titan                         # asks what to do, then shows the plan and asks before acting
-    titan new <app>               # plan for a new app; asks to apply it
+    titan new <app>               # generate the repo and push it to GitHub; no Render
+    titan deploy <app>            # set it up on Render and deploy it
     titan golive <app>            # plan the go-live (after you add the CNAME)
     titan status <app>            # what exists and what is missing; changes nothing
-    titan new <app> --commit      # apply without asking (for scripts)
-    titan new <app> --plan        # show the plan only
+    titan deploy <app> --commit   # apply without asking (for scripts)
+    titan deploy <app> --plan     # show the plan only
 
 Every run reads the accounts first and shows the whole plan; nothing changes
 until you say yes (or pass --commit). Each run picks up where the last
@@ -24,7 +25,7 @@ from rich.console import Console
 from titan import TitanError, __version__, credentials
 from titan.app import SLUG, App
 from titan.credentials import Settings
-from titan.plans import Context, plan_golive, plan_new
+from titan.plans import Context, plan_deploy, plan_golive, plan_new
 from titan.providers import GitHub, Render, Resend, SharedDb
 from titan.steps import Plan, execute
 from titan.ui import Ask, LiveView, header
@@ -40,7 +41,8 @@ def parse(argv: list[str] | None) -> argparse.Namespace:
     parser.add_argument("--version", action="version", version=f"titan {__version__}")
     sub = parser.add_subparsers(dest="command")
     for command, help_text in (
-        ("new", "provision a new app, or finish one"),
+        ("new", "generate a new app and push it to GitHub (nothing on Render)"),
+        ("deploy", "set the app up on Render and deploy it, or finish doing so"),
         ("golive", "point the app's domain at it"),
         ("status", "show what exists and what is missing"),
     ):
@@ -50,12 +52,14 @@ def parse(argv: list[str] | None) -> argparse.Namespace:
             mode = p.add_mutually_exclusive_group()
             mode.add_argument("--commit", action="store_true", help="apply without asking")
             mode.add_argument("--plan", action="store_true", help="show the plan only")
-        p.add_argument("--deploy-timeout", type=float, default=900, help="seconds per deploy")
+        if command != "new":
+            p.add_argument("--deploy-timeout", type=float, default=900, help="seconds per deploy")
         if command == "new":
             p.add_argument("--name", default="", help="display name (default: from the slug)")
             p.add_argument(
                 "--dir", type=Path, default=Path.cwd(), help="where to generate the repo"
             )
+            p.add_argument("--description", default="", help="one line describing it")
         if command == "golive":
             p.add_argument("--verify-timeout", type=float, default=600, help="seconds for DNS")
     return parser.parse_args(argv)
@@ -117,6 +121,16 @@ def ask_existing_app(ask: Ask, render: Render, owner_id: str, settings: Settings
     return ask.choose("Which app?", [(name, name) for name in apps])
 
 
+def ask_app_to_deploy(ask: Ask, here: Path) -> str:
+    """The slug to deploy; the current checkout's, if it is a Titan app."""
+    default = here.name if (here / "render.yaml").exists() and SLUG.match(here.name) else ""
+    return ask.text(
+        "App slug (its GitHub repo)",
+        default=default,
+        validate=lambda v: bool(SLUG.match(v)) or "Lowercase letters, digits and hyphens",
+    )
+
+
 def run(plan: Plan, console: Console, commit: bool, confirm: bool, ask: Ask | None) -> None:
     """Show the plan; run it if committed, or if asked and the answer is yes."""
     view = LiveView(console, open_links=console.is_terminal)
@@ -155,29 +169,38 @@ def main(argv: list[str] | None = None) -> int:
 
         settings = credentials.load(secret)
         render = Render(settings.render_api_key)
-        owner_id, workspace = pick_workspace(render, settings, ask)
-        header(console, settings.sources, workspace)
-
         command: str | None = args.command
-        name: str = getattr(args, "name", "")
-        answers: dict[str, str] = {}
         if command is None:
             if ask is None:  # unreachable: checked above
                 raise TitanError("Not a terminal.")
             command = ask.choose(
                 "What do you want to do?",
                 [
-                    ("Create a new app (or finish one)", "new"),
+                    ("Create a new app (repo on GitHub, nothing on Render)", "new"),
+                    ("Deploy an app to Render", "deploy"),
                     ("Go live on the custom domain", "golive"),
                     ("Status of an app", "status"),
                 ],
             )
+        # `new` never touches Render, so it needs no workspace.
+        owner_id, workspace = (
+            ("", "") if command == "new" else pick_workspace(render, settings, ask)
+        )
+        header(console, settings.sources, workspace)
+
+        name: str = getattr(args, "name", "")
+        answers: dict[str, str] = {}
+        if args.command is None and ask is not None:
             if command == "new":
                 name, slug, answers = ask_new_app(ask)
+            elif command == "deploy":
+                slug = ask_app_to_deploy(ask, Path.cwd())
             else:
                 slug = ask_existing_app(ask, render, owner_id, settings)
         else:
             slug = args.app
+            if getattr(args, "description", ""):
+                answers["description"] = args.description
         app = App.from_slug(slug, settings, name)
         ctx = Context(
             app=app,
@@ -194,13 +217,15 @@ def main(argv: list[str] | None = None) -> int:
         commit = bool(getattr(args, "commit", False))
         confirm = not getattr(args, "plan", False)
         if command == "status":
-            console.print(f"[bold]{app.name}[/bold]  new")
-            run(plan_new(ctx), console, commit=False, confirm=False, ask=None)
+            console.print(f"[bold]{app.name}[/bold]  deploy")
+            run(plan_deploy(ctx), console, commit=False, confirm=False, ask=None)
             if ctx.web is not None:
                 console.print(f"\n[bold]{app.name}[/bold]  go-live")
                 run(plan_golive(ctx), console, commit=False, confirm=False, ask=None)
         elif command == "new":
             run(plan_new(ctx), console, commit, confirm, ask)
+        elif command == "deploy":
+            run(plan_deploy(ctx), console, commit, confirm, ask)
         else:
             run(plan_golive(ctx), console, commit, confirm, ask)
     except TitanError as exc:

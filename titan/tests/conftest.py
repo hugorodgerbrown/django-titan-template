@@ -218,6 +218,7 @@ class FakeGitHub:
         self.exists = exists
         self.declares_cron = declares_cron
         self.generated: list[dict[str, str]] = []
+        self.published: list[tuple[str, Path]] = []
 
     def repo_exists(self, repo: str) -> bool:
         """Whether the repo exists."""
@@ -227,11 +228,15 @@ class FakeGitHub:
         """Whether render.yaml declares the service."""
         return self.declares_cron
 
-    def generate(self, answers: dict[str, str], repo: str, workdir: Path) -> Path:
-        """Record the answers; the repo now exists."""
+    def generate(self, answers: dict[str, str], workdir: Path) -> Path:
+        """Record the answers."""
         self.generated.append(answers)
-        self.exists = True
         return workdir / answers["project_slug"]
+
+    def publish(self, repo: str, target: Path) -> None:
+        """Record the push; the repo now exists."""
+        self.published.append((repo, target))
+        self.exists = True
 
 
 class RecordingView:

@@ -369,8 +369,10 @@ class GitHub:
         pattern = rf"^\s*name:\s*['\"]?{re.escape(name)}['\"]?\s*(#.*)?$"
         return re.search(pattern, result.stdout, re.M) is not None
 
-    def generate(self, answers: dict[str, str], repo: str, workdir: Path) -> Path:
-        """Copier copy from the template with these answers, then create the repo and push.
+    def generate(self, answers: dict[str, str], workdir: Path) -> Path:
+        """Copier copy from the template with these answers, then commit it.
+
+        The template's own tasks run too (icons, uv.lock, npm, git init).
 
         Copier runs with --defaults, so any question titan did not ask takes
         the template's default rather than prompting under the live display.
@@ -380,16 +382,38 @@ class GitHub:
         if target.exists():
             raise TitanError(f"{target} already exists; move it or run from another directory.")
         data = [arg for key, value in answers.items() for arg in ("--data", f"{key}={value}")]
-        steps = [
-            ["uvx", "copier", "copy", "--trust", "--defaults", *data, self.template, str(target)],
-            ["git", "add", "-A"],
-            ["git", "commit", "--quiet", "-m", "Generate from django-titan-template"],
-            ["gh", "repo", "create", repo, "--private", "--source", str(target), "--push"],
-        ]
+        self._steps(
+            [
+                [
+                    "uvx",
+                    "copier",
+                    "copy",
+                    "--trust",
+                    "--defaults",
+                    *data,
+                    self.template,
+                    str(target),
+                ],
+                ["git", "add", "-A"],
+                ["git", "commit", "--quiet", "-m", "Generate from django-titan-template"],
+            ],
+            target,
+        )
+        return target
+
+    def publish(self, repo: str, target: Path) -> None:
+        """Create the private GitHub repo from the local checkout and push it."""
+        self._need("gh", "https://cli.github.com, then `gh auth login`")
+        self._steps(
+            [["gh", "repo", "create", repo, "--private", "--source", str(target), "--push"]],
+            target,
+        )
+
+    def _steps(self, steps: list[list[str]], target: Path) -> None:
+        """Run each command (all but copier inside the checkout); stop at the first failure."""
         for args in steps:
             cwd = None if args[0] == "uvx" else target
             result = self.run(args, cwd=cwd, capture_output=True, text=True, check=False)
             if result.returncode != 0:
                 tail = (result.stderr or result.stdout or "").strip().splitlines()[-3:]
                 raise TitanError(f"{' '.join(args[:3])} … failed: {' / '.join(tail)}")
-        return target
