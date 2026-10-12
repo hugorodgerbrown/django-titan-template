@@ -30,8 +30,8 @@ apps/mcp/        the MCP endpoint (/mcp) and its tools; auth is mcp-auth.
 templates/       base.html (the app, /app/), public_base.html, includes
 static/js/       plain JavaScript, classic scripts, no build step
 static/css/      app.css: tokens on :root, components below
-docs/            accounts, testing, user-testing, pwa, security, performance,
-                 decisions/
+docs/            accounts, testing, user-testing, onboarding-tour, pwa,
+                 security, performance, decisions/
 .claude/skills/  writing the Titan docs kept in Linear (research, user
                  testing script, blog post), each with a length setting
 ```
@@ -98,6 +98,18 @@ respect `--verbosity`, exit non-zero on failure.
 No passwords: email link or code, then passkeys. Read
 [docs/accounts.md](docs/accounts.md) before touching sign-in. Views never
 send mail; they enqueue a task (`apps/accounts/tasks.py`).
+
+## Onboarding tour
+
+Every app ships a first-run tour, offered after an account's first sign-in
+and again from the account page. Write the script in
+`docs/onboarding-tour.md` and agree it before building. The tour runs on a
+private demo copy made for the one person taking it, never on their real
+data; real taps move it on, and nothing in it saves. Each page gets an
+intro, then zoom-ins on its parts, then a real tap to the next page; it
+ends on the person's first real action. Measure it in fivebar with
+`Tour started`, `Tour ended`, `Tour finished` and that first action. Why:
+[docs/decisions/every-app-has-an-onboarding-tour.md](docs/decisions/every-app-has-an-onboarding-tour.md).
 
 ## Tests
 
