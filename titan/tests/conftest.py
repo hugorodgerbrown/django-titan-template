@@ -65,9 +65,10 @@ class FakeRender:
         """One workspace."""
         return [{"id": "tea-1", "name": "Ultraniche"}]
 
-    def service(self, name: str, repo: str, kind: str) -> dict[str, Any] | None:
-        """The service, once the Blueprint is deployed."""
+    def service(self, name: str, repo: str, kind: str, owner_id: str = "") -> dict[str, Any] | None:
+        """The service, once the Blueprint is deployed; always asked within the workspace."""
         assert repo == REPO
+        assert owner_id == "tea-1"
         assert kind == ("cron_job" if name.endswith("-purge") else "web_service")
         self.lookups += 1
         if self.blueprint_after is not None and self.lookups > self.blueprint_after:

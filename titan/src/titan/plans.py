@@ -61,8 +61,8 @@ class Context:
     def read_services(self) -> None:
         """Find the app's services and their own env vars (None before the Blueprint)."""
         app = self.app
-        self.web = self.render.service(app.web_service, app.repo_url, "web_service")
-        self.cron = self.render.service(app.cron_service, app.repo_url, "cron_job")
+        self.web = self.render.service(app.web_service, app.repo_url, "web_service", self.owner_id)
+        self.cron = self.render.service(app.cron_service, app.repo_url, "cron_job", self.owner_id)
         self.web_env = self.render.env(self.web["id"]) if self.web else {}
         self.cron_env = self.render.env(self.cron["id"]) if self.cron else {}
 

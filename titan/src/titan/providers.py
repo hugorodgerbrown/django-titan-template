@@ -118,14 +118,21 @@ class Render:
         """The workspaces (owners) this key can see: id, name."""
         return unwrap(self._get("/owners?limit=100"), "owner")
 
-    def service(self, name: str, repo: str, kind: str) -> dict[str, Any] | None:
+    def service(self, name: str, repo: str, kind: str, owner_id: str = "") -> dict[str, Any] | None:
         """The service with this name, built from this repo; None if there is none.
 
         A same-named service from another repo, or more than one match (the key
         can see several workspaces), is an error: titan overwrites a service's
-        credentials and deploys it, so it never guesses.
+        credentials and deploys it, so it never guesses. ``owner_id`` limits
+        the search to one workspace.
         """
-        named = [s for s in self._paged("/services", "service", name=name) if s.get("name") == name]
+        query = {"name": name, **({"ownerId": owner_id} if owner_id else {})}
+        rows = self._paged("/services", "service", **query)
+        named = [
+            s
+            for s in rows
+            if s.get("name") == name and (not owner_id or s.get("ownerId") in (None, owner_id))
+        ]
         ours = [s for s in named if same_repo(s.get("repo", ""), repo) and s.get("type") == kind]
         if named and not ours:
             raise TitanError(

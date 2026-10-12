@@ -301,3 +301,22 @@ def test_shared_db_rekeys_an_existing_role() -> None:
     conn.statements.clear()
     db.ensure("tally", None)
     assert not any("alter role" in s or "create" in s for s in conn.statements)
+
+
+def test_render_looks_for_services_in_the_chosen_workspace_only() -> None:
+    """With a workspace, the query names it and a service from another is ignored."""
+    urls: list[str] = []
+    service = {"name": "tally", "type": "web_service", "repo": REPO}
+    rows = [
+        {"service": {**service, "id": "a", "ownerId": "tea-1"}},
+        {"service": {**service, "id": "b", "ownerId": "tea-2"}},
+    ]
+
+    def call(method: str, url: str, token: str, body: Any = None) -> Any:
+        urls.append(url)
+        return rows
+
+    found = Render("tok", call).service("tally", REPO, "web_service", "tea-2")
+    assert found is not None
+    assert found["id"] == "b"
+    assert "ownerId=tea-2" in urls[0]
