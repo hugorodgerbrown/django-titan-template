@@ -31,9 +31,9 @@ python3 build.py          # writes dist/; open dist/index.html
 ```
 
 The build uses only the Python standard library. Render's static site
-`ultraniche-home` has root directory `homepage`, runs `python3 build.py`
-and publishes `dist/`, with nothing to install. It deploys from `main`
-when anything under `homepage/` changes.
+`ultraniche-home` (https://ultraniche-home.onrender.com) runs
+`cd homepage && python3 build.py` and publishes `homepage/dist`, with
+nothing to install. It deploys every push to `main`.
 
 It lives in this repository because Project Zero holds everything the
 Titan apps share, and the launch tile (RAS-39) is part of it.
