@@ -87,6 +87,16 @@ class Context:
 
     def set_value(self, key: str, value: str) -> None:
         """Write one of the app's keys to its group, and wherever a service shadows it."""
+        self.write_group(key, value)
+        for service, env in ((self.web, self.web_env), (self.cron, self.cron_env)):
+            if service and key in env and env[key] != value:
+                self.render.set_env(service["id"], key, value)
+                env[key] = value
+        if self.services:
+            self.dirty = True
+
+    def write_group(self, key: str, value: str) -> None:
+        """Write one of the app's keys to its group only, creating the group if need be."""
         if key not in APP_KEYS:
             raise TitanError(f"{key} is not one of the app group's keys.")
         if self.group is None:
@@ -96,12 +106,6 @@ class Context:
             self.render.set_group_env(self.group["id"], key, value)
             rows = [r for r in self.group.get("envVars", []) if r["key"] != key]
             self.group["envVars"] = [*rows, {"key": key, "value": value}]
-        for service, env in ((self.web, self.web_env), (self.cron, self.cron_env)):
-            if service and key in env and env[key] != value:
-                self.render.set_env(service["id"], key, value)
-                env[key] = value
-        if self.services:
-            self.dirty = True
 
     def wait(self, timeout: float, what: str, check: Callable[[float], bool]) -> None:
         """Call check(elapsed) every poll seconds until it is true; TitanError on timeout."""
@@ -144,6 +148,7 @@ def plan_new(ctx: Context) -> Plan:
     ctx.read_services()
     ctx.group = render.env_group(app.group, ctx.owner_id)
     _common_group(ctx, plan)
+    _adopt_service_values(ctx, plan)
     _database(ctx, plan)
     _mail_key(ctx, plan)
     _app_values(ctx, plan)
@@ -202,6 +207,34 @@ def _common_group(ctx: Context, plan: Plan) -> None:
         f"Add {', '.join(missing)} to the shared env group {COMMON_GROUP!r}",
         note,
         run=add_missing,
+    )
+
+
+def _adopt_service_values(ctx: Context, plan: Plan) -> None:
+    """Copy an older app's values from its web service into its group.
+
+    Apps made before the groups keep DATABASE_URL and the rest on the
+    service. The service's copy stays (it wins, so nothing changes for the
+    running app) but the group becomes complete, so the service's own
+    copies can later be deleted without losing anything.
+    """
+    adopt = {
+        k: ctx.web_env[k]
+        for k in APP_KEYS
+        if ctx.web_env.get(k) and ctx.group_env.get(k) != ctx.web_env[k]
+    }
+    if not adopt:
+        return
+
+    def copy(_: Progress) -> None:
+        for key, value in adopt.items():
+            ctx.write_group(key, value)
+
+    plan.add(
+        f"Copy {', '.join(adopt)} from the {ctx.app.web_service} service into the "
+        f"app's env group {ctx.app.group!r}",
+        "the service keeps its own copy, which wins until you delete it",
+        run=copy,
     )
 
 

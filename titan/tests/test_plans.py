@@ -319,3 +319,28 @@ def test_golive_needs_the_service(make_ctx: Any) -> None:
     """Go-live before the Blueprint points back at `new`."""
     with pytest.raises(TitanError, match="run `titan new tally` first"):
         plan_golive(make_ctx(render=FakeRender(services=False)))
+
+
+def test_an_older_apps_service_values_are_copied_into_its_group(make_ctx: Any) -> None:
+    """Values that live only on the service are copied to the group, without a redeploy."""
+    render = FakeRender()
+    url = "postgresql://tally:pw@dpg-abc123-a:5432/tally"
+    render.envs["srv-web"].update(
+        {"DATABASE_URL": url, "EMAIL_HOST_PASSWORD": "re_old", "DJANGO_SECRET_KEY": "sk"}
+    )
+    render.create_env_group("titan", "tea-1", SHARED)
+    for service in ("srv-web", "crn-cron"):
+        render.link_group("evg-titan", service)
+    db = FakeDb(roles={"tally"}, databases={"tally"})
+    plan = plan_new(make_ctx(render=render, db=db))
+    step = next(s for s in plan.steps if s.title.startswith("Copy"))
+    assert step.title == (
+        "Copy DATABASE_URL, DJANGO_SECRET_KEY, EMAIL_HOST_PASSWORD from the tally service "
+        "into the app's env group 'tally'"
+    )
+    run(plan)
+    group = render.group_values("tally")
+    assert (group["DATABASE_URL"], group["EMAIL_HOST_PASSWORD"]) == (url, "re_old")
+    assert render.envs["srv-web"]["DATABASE_URL"] == url
+    # Writing DEFAULT_FROM_EMAIL and linking the new group are real changes: one deploy.
+    assert render.deploys == ["srv-web", "crn-cron"]
