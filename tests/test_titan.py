@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import importlib.machinery
 import importlib.util
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -23,6 +24,8 @@ assert _spec is not None
 titan = importlib.util.module_from_spec(_spec)
 sys.modules["titan"] = titan
 _loader.exec_module(titan)
+# The autouse fixture fakes this; its own test needs the real one.
+BLUEPRINT_DECLARES = titan.blueprint_declares
 
 ADMIN_URL = "postgresql://shared_db_user:pw@dpg-abc123-a.frankfurt-postgres.render.com/shared_db"
 
@@ -156,6 +159,7 @@ def no_network(monkeypatch: pytest.MonkeyPatch) -> list[str]:
     checked: list[str] = []
     monkeypatch.setattr(titan, "check_health", lambda url, **_: checked.append(url))
     monkeypatch.setattr(titan, "github_repo_exists", lambda repo: True)
+    monkeypatch.setattr(titan, "blueprint_declares", lambda repo, name: False)
     monkeypatch.setattr(titan.time, "sleep", lambda _: None)
     return checked
 
@@ -308,6 +312,30 @@ def test_new_provisions_an_app_with_no_cron_job(
     assert all(service == "srv-web" for service, _, _ in render.writes)
     assert render.deploys == ["srv-web"]
     assert no_network == ["https://tally-s2nb.onrender.com"]
+
+
+def test_new_stops_when_render_yaml_declares_a_missing_cron_job(
+    app: Any, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A cron job render.yaml declares but Render lacks means an incomplete Blueprint."""
+    monkeypatch.setattr(titan, "blueprint_declares", lambda repo, name: True)
+    render = FakeRender()
+    del render.services["tally-purge"]
+    out = run(titan.plan_new(app, render, FakeResend(), FakeDb(), tmp_path, 60), commit=False)
+    assert "run `bin/titan new tally --commit` again" in "\n".join(out)
+    assert render.writes == []
+
+
+def test_blueprint_declares_reads_render_yaml(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The service name must appear as a name: line; an unreadable file counts as declared."""
+    yaml = "services:\n  - type: web\n    name: tally\n  - type: cron\n    name: tally-purge\n"
+    result = subprocess.CompletedProcess([], 0, stdout=yaml)
+    monkeypatch.setattr(titan.subprocess, "run", lambda *a, **k: result)
+    assert BLUEPRINT_DECLARES("o/tally", "tally-purge")
+    result.stdout = "services:\n  - type: web\n    name: tally\n"
+    assert not BLUEPRINT_DECLARES("o/tally", "tally-purge")
+    result.returncode = 1
+    assert BLUEPRINT_DECLARES("o/tally", "tally-purge")
 
 
 def test_new_is_idempotent(app: Any, tmp_path: Path) -> None:

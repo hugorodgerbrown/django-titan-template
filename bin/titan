@@ -505,6 +505,32 @@ def github_repo_exists(repo: str) -> bool:
     )
 
 
+def blueprint_declares(repo: str, name: str) -> bool:
+    """Whether the repo's render.yaml declares a service with this name.
+
+    If the file can't be read, the answer is yes, so a missing service
+    stops the run rather than being skipped.
+    """
+    result = subprocess.run(
+        [
+            "gh",
+            "api",
+            f"repos/{repo}/contents/render.yaml",
+            "-H",
+            "Accept: application/vnd.github.raw",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        return True
+    return (
+        re.search(rf"^\s*name:\s*['\"]?{re.escape(name)}['\"]?\s*$", result.stdout, re.M)
+        is not None
+    )
+
+
 def generate_repo(app: App, workdir: Path) -> None:
     """Copier copy from the template, then create the private GitHub repo and push."""
     target = (workdir / app.slug).resolve()
@@ -574,9 +600,11 @@ def plan_new(
 
     web = render.service(app.web_service, app.repo_url, "web_service")
     # The clean-up job is optional: an app with no scheduled jobs leaves it
-    # out of render.yaml, and only the web service is provisioned.
+    # out of render.yaml, and only the web service is provisioned. One that
+    # render.yaml declares but Render lacks still means the Blueprint is
+    # incomplete.
     cron = render.service(app.cron_service, app.repo_url, "cron_job")
-    if web is None:
+    if web is None or (cron is None and blueprint_declares(app.repo, app.cron_service)):
         plan.add(
             "Deploy the Blueprint in Render (one click; leave the prompted values blank)",
             app.blueprint_link(),
