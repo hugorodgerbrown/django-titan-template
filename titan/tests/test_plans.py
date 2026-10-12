@@ -305,19 +305,38 @@ def test_golive_dry_run_gives_the_cname(make_ctx: Any) -> None:
     plan = plan_golive(make_ctx(render=render))
     run(plan, commit=False)
     assert "CNAME  tally  →  tally-s2nb.onrender.com" in plan.steps[0].title
+    assert plan.steps[1].title == "In fivebar: add the site tally.ultraniche.ai"
+    assert plan.steps[1].detail == "by hand, at https://fiveb.ar/sites"
     assert render.writes == []
 
 
 def test_golive_verifies_sets_site_url_and_checks(make_ctx: Any, checked: list[str]) -> None:
-    """SITE_URL goes in the app's group; the hosts are already covered by the shared one."""
+    """SITE_URL and FIVEBAR_DOMAIN go in the app's group; the shared one covers the hosts."""
     render = FakeRender()
     render.create_env_group("tally", "tea-1", {"DJANGO_SECRET_KEY": "k"})
     render.add_custom_domain("srv-web", "tally.ultraniche.ai")
-    run(plan_golive(make_ctx(render=render)))
-    assert render.group_values("tally")["SITE_URL"] == "https://tally.ultraniche.ai"
+    plan = plan_golive(make_ctx(render=render))
+    assert plan.steps[-1].title.startswith("Set SITE_URL, FIVEBAR_DOMAIN, deploy")
+    run(plan)
+    group = render.group_values("tally")
+    assert group["SITE_URL"] == "https://tally.ultraniche.ai"
+    assert group["FIVEBAR_DOMAIN"] == "tally.ultraniche.ai"
     assert render.envs["srv-web"] == {}
     assert render.deploys == ["srv-web", "crn-cron"]
     assert checked == ["https://tally.ultraniche.ai"]
+
+
+def test_golive_on_a_live_app_only_turns_on_the_counts(make_ctx: Any) -> None:
+    """An app that went live before fivebar gets FIVEBAR_DOMAIN alone, and a deploy."""
+    render = FakeRender()
+    render.create_env_group("tally", "tea-1", {"SITE_URL": "https://tally.ultraniche.ai"})
+    render.add_custom_domain("srv-web", "tally.ultraniche.ai")
+    render.verify_custom_domain("srv-web", "tally.ultraniche.ai")
+    plan = plan_golive(make_ctx(render=render))
+    assert plan.steps[-1].title.startswith("Set FIVEBAR_DOMAIN, deploy")
+    run(plan)
+    assert render.group_values("tally")["FIVEBAR_DOMAIN"] == "tally.ultraniche.ai"
+    assert render.deploys == ["srv-web", "crn-cron"]
 
 
 def test_golive_adds_the_domain_to_hosts_pinned_on_the_service(make_ctx: Any) -> None:

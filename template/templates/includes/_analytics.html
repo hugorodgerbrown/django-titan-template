@@ -1,0 +1,2 @@
+{# fivebar's tag, on every page while FIVEBAR_DOMAIN is set (apps/core/analytics.py). Keep async; never bundle or copy the script. #}
+{% if analytics.domain %}<script async data-domain="{{ analytics.domain }}"{% if analytics.path %} data-path="{{ analytics.path }}"{% endif %} src="{{ analytics.script }}"></script>{% endif %}

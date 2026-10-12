@@ -9,7 +9,7 @@ overwrites them):
   relay). titan adds missing keys and never overwrites one that was
   changed in the dashboard.
 * ``<slug>``: the app's own values (its database URL, secret key, mail key
-  and sender, and SITE_URL at go-live).
+  and sender, and SITE_URL and FIVEBAR_DOMAIN at go-live).
 
 A key belongs to one group only. To override a shared value for one app,
 set it on the service itself: Render gives a service's own env vars
@@ -35,7 +35,11 @@ APP_KEYS = (
     "EMAIL_HOST_PASSWORD",
     "DEFAULT_FROM_EMAIL",
     "SITE_URL",
+    # The site's domain in fivebar, which turns the visitor counts on.
+    "FIVEBAR_DOMAIN",
 )
+# Where a site is added to fivebar; it has no API for that.
+FIVEBAR_SITES = "https://fiveb.ar/sites"
 
 
 def common_env(settings: Settings) -> dict[str, str]:

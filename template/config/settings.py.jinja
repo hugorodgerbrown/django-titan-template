@@ -16,6 +16,7 @@ from django.utils.csp import CSP
 from mcp_auth.conf import oauth2_settings
 {%- endif %}
 
+from apps.core import analytics
 from apps.pwa import conf as pwa_conf
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -70,17 +71,22 @@ SILENCED_SYSTEM_CHECKS = [
 {%- endif %}
 ]
 
+# Visitor counts by fivebar: off unless set, to the domain the site was
+# added to fivebar under (titan sets it at go-live). See apps/core/analytics.py.
+FIVEBAR_DOMAIN: str = config("FIVEBAR_DOMAIN", default="")
+
 # Content Security Policy: everything from this origin, nothing inline.
 # There is no inline <script> anywhere; the launch-screen gate is a tiny
 # blocking file instead, so the policy needs no nonce. htmx's eval and
-# injected indicator styles are turned off in base.html to match.
+# injected indicator styles are turned off in base.html to match. The one
+# other origin is fivebar's, and only while FIVEBAR_DOMAIN is set.
 SECURE_CSP = {
     "default-src": [CSP.SELF],
-    "script-src": [CSP.SELF],
+    "script-src": [CSP.SELF, *analytics.csp_sources(FIVEBAR_DOMAIN)],
     "style-src": [CSP.SELF],
     "img-src": [CSP.SELF, "data:"],
     "font-src": [CSP.SELF],
-    "connect-src": [CSP.SELF],
+    "connect-src": [CSP.SELF, *analytics.csp_sources(FIVEBAR_DOMAIN)],
     "worker-src": [CSP.SELF],
     "manifest-src": [CSP.SELF],
     "object-src": [CSP.NONE],
@@ -140,6 +146,7 @@ TEMPLATES = [
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "apps.pwa.context_processors.pwa",
+                "apps.core.analytics.analytics",
             ],
         },
     },

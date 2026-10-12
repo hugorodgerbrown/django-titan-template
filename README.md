@@ -68,6 +68,7 @@ difference as a normal merge: review it like any PR.
 | MCP (optional) | `/mcp` JSON-RPC endpoint with notes tools, plus the privacy notice, terms and help as Markdown, and an MCP App (`list_notes` drawn as a card in Claude), authenticated by mcp-auth, passing its contract suite |
 | Tests | pytest + FactoryBoy (90% floor), Vitest + fake-indexeddb, three capped Playwright journeys (offline write, offline fallback, passkey) |
 | Lint and types | ruff (format, lint, bandit, docstrings), mypy + django-stubs, pre-commit |
+| Analytics | [fivebar](https://fiveb.ar) visitor counts, no cookies: its tag on every page once `FIVEBAR_DOMAIN` is set (titan sets it at go-live), with private paths counted by their route |
 | Security | Strict CSP (no inline anything), `check --deploy`, semgrep, pip-audit, npm audit, gitleaks, Dependabot |
 | Performance | Precache byte budget, query-count assertions, Lighthouse CI budgets |
 | CI and deploy | One GitHub Actions job per tox env; Render Blueprint with a daily clean-up job |

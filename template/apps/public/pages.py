@@ -16,6 +16,7 @@ from django.conf import settings
 from django.template.loader import render_to_string
 from django.urls import reverse
 
+from apps.core.analytics import SCRIPT
 from apps.pwa.context_processors import identity
 
 
@@ -38,7 +39,12 @@ PAGES = {
 def page_as_markdown(name: str) -> dict[str, str]:
     """Return a page's title, absolute URL and body (``markdown``)."""
     page = PAGES[name]
-    html = render_to_string(page.template, {"pwa": identity()})
+    # No request here, so no context processors: give the bodies what they read.
+    context = {
+        "pwa": identity(),
+        "analytics": {"domain": settings.FIVEBAR_DOMAIN, "script": SCRIPT, "path": ""},
+    }
+    html = render_to_string(page.template, context)
     return {
         "title": page.title,
         "url": urljoin(settings.SITE_URL, reverse(page.url_name)),
