@@ -22,8 +22,11 @@ waits for Render to verify the domain, then sets SITE_URL and
 DJANGO_ALLOWED_HOSTS, deploys and checks /healthz on the real address.
 
 Secrets go from the provider's response straight into Render; nothing
-prints them. Settings come from the environment, or ~/.config/titan/env
-(KEY=value lines):
+prints them. The three keys below are asked for, hidden, on each run, unless
+~/.config/titan/env (KEY=value lines) has them; they are never read from the
+environment, so an app's own keys in your shell can't leak in. All three
+are account-wide, not per app. The TITAN_* overrides may also be set in the
+environment:
 
     RENDER_API_KEY        Render API key (Account settings > API keys)
     RESEND_API_KEY        a FULL-ACCESS Resend key: it creates the per-app keys
@@ -41,6 +44,7 @@ Needs `gh` (signed in) and `uvx` for `new`'s first step.
 from __future__ import annotations
 
 import argparse
+import getpass
 import json
 import os
 import re
@@ -60,6 +64,13 @@ from typing import Any
 
 TEMPLATE = "gh:hugorodgerbrown/django-titan-template"
 CONFIG_FILE = Path.home() / ".config" / "titan" / "env"
+# Asked for (hidden) unless the config file has them; never read from the
+# environment. All three are account-wide, not per app.
+SECRET_KEYS = {
+    "RENDER_API_KEY": "Render API key",
+    "RESEND_API_KEY": "Resend full-access API key",
+    "TITAN_DB_ADMIN_URL": "shared-db External Database URL",
+}
 RENDER_API = "https://api.render.com/v1"
 RESEND_API = "https://api.resend.com"
 SLUG = re.compile(r"^[a-z][a-z0-9-]*$")
@@ -83,7 +94,7 @@ class TitanError(Exception):
 
 @dataclass(frozen=True)
 class Settings:
-    """Credentials and defaults, from the environment or the config file."""
+    """Credentials and defaults: keys asked for or from the config file."""
 
     render_api_key: str
     resend_api_key: str
@@ -94,18 +105,31 @@ class Settings:
     db_internal_host: str = ""
 
     @classmethod
-    def load(cls, environ: dict[str, str] | None = None, path: Path | None = None) -> Settings:
-        """Read settings; the environment wins over the config file."""
+    def load(
+        cls,
+        environ: dict[str, str] | None = None,
+        path: Path | None = None,
+        ask: Callable[[str], str] | None = None,
+    ) -> Settings:
+        """Read the keys from the config file or ask for them; never from the environment.
+
+        A shell inside an app's checkout often exports that app's own
+        RESEND_API_KEY or DATABASE_URL-style values, so the keys are only
+        ever typed in (hidden) or read from the user-level config file.
+        The non-secret TITAN_* overrides still come from the environment.
+        """
         path = path or CONFIG_FILE
+        ask = ask or getpass.getpass
         values = read_env_file(path)
-        values.update(os.environ if environ is None else environ)
-        missing = [
-            k
-            for k in ("RENDER_API_KEY", "RESEND_API_KEY", "TITAN_DB_ADMIN_URL")
-            if not values.get(k)
-        ]
-        if missing:
-            raise TitanError(f"Set {', '.join(missing)} in the environment or {path}.")
+        environ = dict(os.environ if environ is None else environ)
+        for key in SECRET_KEYS:
+            environ.pop(key, None)
+        values.update(environ)
+        for key, label in SECRET_KEYS.items():
+            if not values.get(key):
+                values[key] = ask(f"{label} ({key}): ").strip()
+            if not values[key]:
+                raise TitanError(f"No {key} given.")
         return cls(
             render_api_key=values["RENDER_API_KEY"],
             resend_api_key=values["RESEND_API_KEY"],
@@ -505,6 +529,32 @@ def github_repo_exists(repo: str) -> bool:
     )
 
 
+def blueprint_declares(repo: str, name: str) -> bool:
+    """Whether the repo's render.yaml declares a service with this name.
+
+    If the file can't be read, the answer is yes, so a missing service
+    stops the run rather than being skipped.
+    """
+    result = subprocess.run(
+        [
+            "gh",
+            "api",
+            f"repos/{repo}/contents/render.yaml",
+            "-H",
+            "Accept: application/vnd.github.raw",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        return True
+    return (
+        re.search(rf"^\s*name:\s*['\"]?{re.escape(name)}['\"]?\s*(#.*)?$", result.stdout, re.M)
+        is not None
+    )
+
+
 def generate_repo(app: App, workdir: Path) -> None:
     """Copier copy from the template, then create the private GitHub repo and push."""
     target = (workdir / app.slug).resolve()
@@ -573,8 +623,12 @@ def plan_new(
         )
 
     web = render.service(app.web_service, app.repo_url, "web_service")
+    # The clean-up job is optional: an app with no scheduled jobs leaves it
+    # out of render.yaml, and only the web service is provisioned. One that
+    # render.yaml declares but Render lacks still means the Blueprint is
+    # incomplete.
     cron = render.service(app.cron_service, app.repo_url, "cron_job")
-    if web is None or cron is None:
+    if web is None or (cron is None and blueprint_declares(app.repo, app.cron_service)):
         plan.add(
             "Deploy the Blueprint in Render (one click; leave the prompted values blank)",
             app.blueprint_link(),
@@ -586,10 +640,15 @@ def plan_new(
             "it creates the database and email key and fills in the env vars."
         )
         return plan
-    plan.add("Render services", f"{app.web_service}, {app.cron_service}")
+    plan.add(
+        "Render services",
+        f"{app.web_service}, {app.cron_service}"
+        if cron
+        else f"{app.web_service}; no {app.cron_service} job",
+    )
 
     web_env = render.env(web["id"])
-    cron_env = render.env(cron["id"])
+    cron_env = render.env(cron["id"]) if cron else {}
     return _plan_provision(
         plan, app, render, resend, db, web, cron, web_env, cron_env, deploy_timeout
     )
@@ -602,7 +661,7 @@ def _plan_provision(
     resend: Resend,
     db: SharedDb,
     web: dict[str, Any],
-    cron: dict[str, Any],
+    cron: dict[str, Any] | None,
     web_env: dict[str, str],
     cron_env: dict[str, str],
     deploy_timeout: float,
@@ -669,7 +728,7 @@ def _plan_provision(
             "DJANGO_SECRET_KEY": web_env.get("DJANGO_SECRET_KEY", ""),
         }
         for key, value in cron_wanted.items():
-            if value and cron_env.get(key) != value:
+            if cron and value and cron_env.get(key) != value:
                 render.set_env(cron["id"], key, value)
                 changed["cron"] = True
 
@@ -682,7 +741,7 @@ def _plan_provision(
     ]
     cron_pending = [
         k for k in ("DATABASE_URL", "DJANGO_SECRET_KEY")
-        if cron_env.get(k) != web_env.get(k) or (k == "DATABASE_URL" and new_url)
+        if cron and (cron_env.get(k) != web_env.get(k) or (k == "DATABASE_URL" and new_url))
     ]  # fmt: skip
     if pending or cron_pending:
         plan.add(
@@ -708,7 +767,7 @@ def _plan_provision(
 
     def deploy() -> None:
         for name, service in (("web", web), ("cron", cron)):
-            if changed[name]:
+            if service and changed[name]:
                 wait_for_deploy(render, service["id"], render.deploy(service["id"]), deploy_timeout)
         check_health(url)
 
