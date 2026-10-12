@@ -358,6 +358,8 @@ def test_blueprint_declares_reads_render_yaml(monkeypatch: pytest.MonkeyPatch) -
     assert BLUEPRINT_DECLARES("o/tally", "tally-purge")
     result.stdout = "services:\n  - type: web\n    name: tally\n"
     assert not BLUEPRINT_DECLARES("o/tally", "tally-purge")
+    result.stdout = "services:\n  - type: cron\n    name: 'tally-purge'  # clean-up\n"
+    assert BLUEPRINT_DECLARES("o/tally", "tally-purge")
     result.returncode = 1
     assert BLUEPRINT_DECLARES("o/tally", "tally-purge")
 

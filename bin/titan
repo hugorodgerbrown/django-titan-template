@@ -550,7 +550,7 @@ def blueprint_declares(repo: str, name: str) -> bool:
     if result.returncode != 0:
         return True
     return (
-        re.search(rf"^\s*name:\s*['\"]?{re.escape(name)}['\"]?\s*$", result.stdout, re.M)
+        re.search(rf"^\s*name:\s*['\"]?{re.escape(name)}['\"]?\s*(#.*)?$", result.stdout, re.M)
         is not None
     )
 
