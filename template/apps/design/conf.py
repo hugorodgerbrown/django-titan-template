@@ -9,7 +9,6 @@ screen that covers everything) is named here with the reason instead.
 NOT_ON_PAGE: dict[str, str] = {
     "app-header": "the frame of every page, the design page included",
     "app-main": "the frame of every page, the design page included",
-    "site-footer": "the frame of every page, the design page included",
     "offline-banner": "the frame of every page; shown while offline",
     "launch-shell": "covers the whole screen while the app launches",
     "app-launching": "the state the launch screen is in, set on <html>",

@@ -39,6 +39,11 @@ author_email:
   type: str
   default: hugo@rodger-brown.com
 
+copyright_holder:
+  type: str
+  help: Whose copyright the site footer names (a person or a company)
+  default: "{{ author_name }}"
+
 theme_colour:
   type: str
   help: Brand colour for the manifest, launch screen and browser chrome (hex)

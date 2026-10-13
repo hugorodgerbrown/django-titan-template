@@ -167,4 +167,17 @@
       <ul><li>And lists.</li></ul>
     </div>
   </section>
+
+  <section class="card stack" aria-labelledby="ds-footer">
+    <h2 id="ds-footer">Site footer</h2>
+    <p class="meta">Every page ends with it: {% templatetag openblock %} site_footer {% templatetag closeblock %}, set in apps/public/conf.py. This page's own is at the bottom.</p>
+    <footer class="site-footer">
+      <div class="site-footer__brand">
+        <a class="site-footer__name" href="#ds-footer">The app's name</a>
+        <p class="site-footer__tagline">A tagline, when TAGLINE is set.</p>
+      </div>
+      <nav class="site-footer__links" aria-label="Sample"><a href="#ds-footer">Links</a><a href="#ds-footer">that wrap</a><a href="#ds-footer">44px to tap</a></nav>
+      <p class="site-footer__legal">© The year and the holder. All rights reserved.</p>
+    </footer>
+  </section>
 {% endblock %}

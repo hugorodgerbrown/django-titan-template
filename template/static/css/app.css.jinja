@@ -97,17 +97,25 @@ a { color: var(--brand); }
 .app-main { max-width: 40rem; margin: 0 auto; padding: var(--space-lg); }
 .app-main > * + * { margin-top: var(--space-lg); }
 
+/* The site footer (DESIGN.md): name, links, copyright, on every page. */
 .site-footer {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-lg);
+  flex-direction: column;
+  gap: var(--space-md);
   max-width: 40rem;
-  margin: 0 auto;
-  padding: var(--space-lg);
-  padding-bottom: max(var(--space-lg), env(safe-area-inset-bottom));
+  margin: var(--space-2xl) auto 0;
+  padding: var(--space-2xl) var(--space-lg);
+  padding-bottom: max(var(--space-2xl), env(safe-area-inset-bottom));
+  border-top: 1px solid var(--border);
   font-size: var(--type-sm);
 }
-.site-footer a { color: var(--text-2); }
+.site-footer__brand { display: flex; flex-direction: column; gap: var(--space-xs); }
+.site-footer__name { color: var(--text-1); font-weight: 600; font-size: var(--type-base); text-decoration: none; }
+.site-footer__tagline { margin: 0; color: var(--text-2); }
+.site-footer__links { display: flex; flex-wrap: wrap; column-gap: var(--space-lg); }
+/* 44px tall to tap, without spreading the row. */
+.site-footer__links a { min-height: 44px; display: inline-flex; align-items: center; color: var(--text-1); }
+.site-footer__legal { margin: 0; color: var(--text-2); }
 
 .hero { padding: var(--space-3xl) 0 var(--space-lg); }
 .hero h1 { font-size: var(--type-3xl); }
