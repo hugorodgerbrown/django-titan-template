@@ -14,6 +14,13 @@
       <button class="button button--secondary" type="submit">Sign out</button>
     </form>
     {% if user.is_staff %}<p><a href="{% url 'design:index' %}">Design system</a></p>{% endif %}
+    {# The app has no footer; its links live here (DESIGN.md, section 10). #}
+    <p class="meta">
+      <a href="{% url 'public:terms' %}">Terms</a> ·
+      <a href="{% url 'public:privacy' %}">Privacy</a> ·
+      <a href="{% url 'public:help' %}">Help</a> ·
+      © {% now "Y" %} Ultraniche
+    </p>
   </section>
   <section class="card stack" data-passkey-register
            data-options-url="{% url 'accounts:passkey_register_options' %}"

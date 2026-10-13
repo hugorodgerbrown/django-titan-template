@@ -151,14 +151,16 @@ under `/app/`) carries on without it.
   CSP blocks them. Analytics are the one exception, and a page works
   without them.
 
-## 10. Every page has the same frame
+## 10. The page frame
 
 - **The mark top left goes home.** The first link in the header is the
   app's mark (its icon and name), on every page, and it always goes to the
   front page (`/`), inside `/app/` too. The front page shows to people
   who are signed in, so it never bounces them back into the app.
-- **Every site has a proper footer.** Every page, public or in the app,
-  ends with the site footer: the app's name, a copyright line with the
-  year and the name (`© 2026 Gondola`), and links to Terms, Privacy and
-  Help. It is one include, `templates/includes/_footer.html`, in both
-  base templates.
+- **The website has a proper footer; the app has none.** Every public
+  page ends with the site footer: links to Terms, Privacy and Help, and
+  the copyright, `© 2026 Ultraniche` with the current year. Nothing else:
+  no mark, name or strapline. It is one include,
+  `templates/includes/_footer.html`, in `public_base.html`. Pages under
+  `/app/` have no footer: the same links and copyright sit on the account
+  page, under the account icon in the header.

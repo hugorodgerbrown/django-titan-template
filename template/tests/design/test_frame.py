@@ -1,7 +1,7 @@
 """The page frame and offline rules in DESIGN.md (sections 8 to 10).
 
-The mark top left goes home, every page ends with the site footer, and
-every script a page under /app/ loads is there offline.
+The mark top left goes home, the website ends with its footer (the app has
+none), and every script a page under /app/ loads is there offline.
 """
 
 import re
@@ -10,6 +10,7 @@ from pathlib import Path
 from django.conf import settings
 from django.test import Client
 from django.urls import reverse
+from django.utils import timezone
 
 from apps.design.conf import NEEDS_NETWORK
 from apps.pwa import conf as pwa_conf
@@ -57,16 +58,22 @@ def test_the_front_page_shows_to_people_signed_in(signed_in: Client) -> None:
     assert signed_in.get(reverse("public:home")).status_code == 200
 
 
-def test_every_page_ends_with_the_site_footer(client: Client, signed_in: Client) -> None:
-    """Public pages and app pages alike end with the footer and its links."""
-    pages = [
-        client.get(reverse("public:home")).content.decode(),
-        signed_in.get(start_url(signed_in)).content.decode(),
-    ]
-    for html in pages:
-        links = footer(html)
-        for name in ("public:terms", "public:privacy", "public:help"):
-            assert f'href="{reverse(name)}"' in links, name
+def test_public_pages_end_with_the_links_and_the_copyright(client: Client, db: None) -> None:
+    """The website's footer is the links and the copyright, and nothing else."""
+    links = footer(client.get(reverse("public:home")).content.decode())
+    for name in ("public:terms", "public:privacy", "public:help"):
+        assert f'href="{reverse(name)}"' in links, name
+    assert f"© {timezone.localdate().year} Ultraniche" in links
+    assert f'href="{reverse("public:home")}"' not in links, "no mark or name in the footer"
+
+
+def test_the_app_has_no_footer_and_its_links_are_on_the_account_page(signed_in: Client) -> None:
+    """Under /app/ there's no footer; the account page carries its links instead."""
+    assert "<footer" not in signed_in.get(start_url(signed_in)).content.decode()
+    account = signed_in.get(reverse("accounts:account")).content.decode()
+    for name in ("public:terms", "public:privacy", "public:help"):
+        assert f'href="{reverse(name)}"' in account, name
+    assert f"© {timezone.localdate().year} Ultraniche" in account
 
 
 def test_every_page_fits_the_screen() -> None:
