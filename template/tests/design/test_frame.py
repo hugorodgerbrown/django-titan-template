@@ -82,18 +82,28 @@ def test_the_app_frame_shows_when_its_offline() -> None:
     assert "data-offline-banner" in (TEMPLATES / "base.html").read_text()
 
 
+def find_template(name: str) -> Path | None:
+    """A template by the name an include gives it, in templates/ or an app's templates/."""
+    for folder in [TEMPLATES, *sorted((BASE / "apps").glob("*/templates"))]:
+        if (folder / name).is_file():
+            return folder / name
+    return None
+
+
 def app_templates() -> list[Path]:
-    """The app's frame and every template that extends it (the pages under /app/)."""
-    frame = [TEMPLATES / "base.html"]
-    frame += [
-        TEMPLATES / "includes" / name for name in ("_launch_shell.html", "_outbox_status.html")
-    ]
-    pages = [
+    """The app's frame, every page that extends it, and every template they include."""
+    found = [TEMPLATES / "base.html"]
+    found += [
         path
         for path in sorted((BASE / "apps").glob("*/templates/**/*.html"))
         if re.search(r"{%\s*extends\s+[\"']base\.html[\"']", path.read_text())
     ]
-    return frame + pages
+    for path in found:  # grows as includes are found, so includes of includes count too
+        for name in re.findall(r"{%\s*include\s+[\"']([^\"']+)[\"']", path.read_text()):
+            include = find_template(name)
+            if include and include not in found:
+                found.append(include)
+    return found
 
 
 def loaded_static(path: Path) -> set[str]:

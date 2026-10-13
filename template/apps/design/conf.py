@@ -28,6 +28,7 @@ ADDED_BY_FRAMEWORKS: dict[str, str] = {
 # Scripts and stylesheets a page under /app/ loads that aren't precached,
 # because they only work with the network anyway (DESIGN.md, section 9).
 NEEDS_NETWORK: dict[str, str] = {
+    "js/analytics.js": "analytics only send with the network; pages work without them",
     "js/webauthn_json.js": "passkeys need the server to sign in or register",
     "js/passkeys.js": "passkeys need the server to sign in or register",
     "js/design.js": "the design page is a staff reference, not the app",
