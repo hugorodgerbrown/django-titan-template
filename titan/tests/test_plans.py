@@ -30,6 +30,12 @@ def run(plan: Plan, commit: bool = True) -> RecordingView:
     return view
 
 
+TALLY_NEW = (
+    '{"apps": [{"slug": "tally", "name": "Tally", "repo": "hugorodgerbrown/tally",'
+    ' "domain": "tally.ultraniche.ai", "stage": "new", "updates": true}]}'
+)
+
+
 # ---------------------------------------------------------------- new: the repo only
 
 
@@ -46,12 +52,53 @@ def test_new_generates_and_pushes_without_touching_render(make_ctx: Any, tmp_pat
 
 
 def test_new_on_an_existing_repo_does_nothing(make_ctx: Any) -> None:
-    """The repo is there: nothing to generate, and the next step is deploy."""
-    github = FakeGitHub()
+    """The repo is there and registered: nothing to generate, and the next step is deploy."""
+    github = FakeGitHub(register=TALLY_NEW)
     plan = plan_new(make_ctx(github=github))
     assert plan.changes == 0
     assert github.generated == []
     assert "titan deploy tally" in plan.finish
+
+
+def test_new_records_the_app_in_the_register(make_ctx: Any) -> None:
+    """A new app is added to the register at stage new, with copier updates on."""
+    github = FakeGitHub(exists=False)
+    run(plan_new(make_ctx(github=github)))
+    assert github.register() == [
+        {
+            "slug": "tally",
+            "name": "Tally",
+            "repo": "hugorodgerbrown/tally",
+            "domain": "tally.ultraniche.ai",
+            "stage": "new",
+            "updates": True,
+        }
+    ]
+    assert github.commits == ["Add tally in the register of Titan apps (new)"]
+
+
+def test_new_on_an_existing_repo_registers_an_app_made_before_the_register(
+    make_ctx: Any,
+) -> None:
+    """An older app's repo is left alone; it only gains its register entry."""
+    github = FakeGitHub()
+    plan = plan_new(make_ctx(github=github))
+    assert plan.changes == 1
+    run(plan)
+    assert github.generated == []
+    assert [e["slug"] for e in github.register()] == ["tally"]
+
+
+def test_new_leaves_a_repo_copier_did_not_make_out_of_the_register(make_ctx: Any) -> None:
+    """With no copier answers there is nothing for `copier update` to replay."""
+    github = FakeGitHub(copier=False)
+    plan = plan_new(make_ctx(github=github))
+    assert plan.changes == 0
+    assert (
+        plan.steps[-1].title == "hugorodgerbrown/tally was not made with copier from the template"
+    )
+    run(plan)
+    assert github.commits == []
 
 
 def test_deploy_needs_the_repo_on_github(make_ctx: Any) -> None:
@@ -318,7 +365,7 @@ def test_golive_verifies_sets_site_url_and_checks(make_ctx: Any, checked: list[s
     render.create_env_group("tally", "tea-1", {"DJANGO_SECRET_KEY": "k"})
     render.add_custom_domain("srv-web", "tally.ultraniche.ai")
     plan = plan_golive(make_ctx(render=render))
-    assert plan.steps[-1].title.startswith("Set SITE_URL, FIVEBAR_DOMAIN, deploy")
+    assert plan.steps[-2].title.startswith("Set SITE_URL, FIVEBAR_DOMAIN, deploy")
     run(plan)
     group = render.group_values("tally")
     assert group["SITE_URL"] == "https://tally.ultraniche.ai"
@@ -335,10 +382,34 @@ def test_golive_on_a_live_app_only_turns_on_the_counts(make_ctx: Any) -> None:
     render.add_custom_domain("srv-web", "tally.ultraniche.ai")
     render.verify_custom_domain("srv-web", "tally.ultraniche.ai")
     plan = plan_golive(make_ctx(render=render))
-    assert plan.steps[-1].title.startswith("Set FIVEBAR_DOMAIN, deploy")
+    assert plan.steps[-2].title.startswith("Set FIVEBAR_DOMAIN, deploy")
     run(plan)
     assert render.group_values("tally")["FIVEBAR_DOMAIN"] == "tally.ultraniche.ai"
     assert render.deploys == ["srv-web", "crn-cron"]
+
+
+def test_golive_marks_the_app_live_and_keeps_hand_edits(make_ctx: Any) -> None:
+    """Stage moves to live; the name and a paused `updates` set by hand stay."""
+    render = FakeRender()
+    render.add_custom_domain("srv-web", "tally.ultraniche.ai")
+    render.verify_custom_domain("srv-web", "tally.ultraniche.ai")
+    edited = TALLY_NEW.replace('"Tally"', '"Tally Workouts"').replace("true", "false")
+    other = '{"slug": "atlas", "name": "Atlas", "repo": "o/atlas", "domain": "d",'
+    other += ' "stage": "new", "updates": true}'
+    github = FakeGitHub(register=edited.replace("[{", "[" + other + ", {"))
+    run(plan_golive(make_ctx(render=render, github=github)))
+    atlas, tally = github.register()
+    assert atlas["slug"] == "atlas"
+    assert (tally["stage"], tally["name"], tally["updates"]) == ("live", "Tally Workouts", False)
+    assert github.commits == ["Update tally in the register of Titan apps (live)"]
+
+
+def test_golive_on_a_registered_live_app_leaves_the_register(make_ctx: Any) -> None:
+    """Already live in the register: the step is shown done and nothing is committed."""
+    github = FakeGitHub(register=TALLY_NEW.replace('"new"', '"live"'))
+    plan = plan_golive(make_ctx(github=github))
+    assert plan.steps[-1].title == "In the register of Titan apps as live"
+    assert plan.steps[-1].run is None
 
 
 def test_golive_adds_the_fivebar_site_with_a_token(make_ctx: Any) -> None:

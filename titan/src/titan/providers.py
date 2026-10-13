@@ -6,6 +6,7 @@ so the tests swap in fakes and nothing here is reached in a test run.
 
 from __future__ import annotations
 
+import base64
 import json
 import re
 import shutil
@@ -444,6 +445,43 @@ class GitHub:
             [["gh", "repo", "create", repo, "--private", "--source", str(target), "--push"]],
             target,
         )
+
+    def read_file(self, repo: str, path: str) -> tuple[str, str | None]:
+        """A file on the repo's default branch and its blob sha; ("", None) if it isn't there."""
+        self._need("gh", "https://cli.github.com, then `gh auth login`")
+        result = self.run(
+            ["gh", "api", f"repos/{repo}/contents/{path}"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode != 0:
+            if "404" in (result.stderr or ""):
+                return "", None
+            raise TitanError(f"Could not read {path} in {repo}: {(result.stderr or '').strip()}")
+        data = json.loads(result.stdout)
+        return base64.b64decode(data["content"]).decode(), str(data["sha"])
+
+    def write_file(self, repo: str, path: str, text: str, sha: str | None, message: str) -> None:
+        """Commit the file to the default branch; fails if it changed since it was read."""
+        body: dict[str, str] = {
+            "message": message,
+            "content": base64.b64encode(text.encode()).decode(),
+        }
+        if sha:
+            body["sha"] = sha
+        result = self.run(
+            ["gh", "api", "-X", "PUT", f"repos/{repo}/contents/{path}", "--input", "-"],
+            input=json.dumps(body),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode != 0:
+            raise TitanError(
+                f"Could not update {path} in {repo} (it may have changed since it was read; "
+                f"run again): {(result.stderr or '').strip()}"
+            )
 
     def _steps(self, steps: list[list[str]], target: Path) -> None:
         """Run each command (all but copier inside the checkout); stop at the first failure."""

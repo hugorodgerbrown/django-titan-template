@@ -31,6 +31,11 @@ site needs `FIVEBAR_API_KEY` (below); without it, golive lists adding
 the site at [fiveb.ar/sites](https://fiveb.ar/sites) as a step to do by
 hand. Until the site is on fivebar, nothing is counted.
 
+`new` and `golive` also record the app in the register of Titan apps,
+[apps.json](../apps.json) in this repo (a commit to `main` through `gh`):
+`new` at stage `new`, `golive` at `live`. Run `titan new <slug>` on an app
+whose repo already exists to add an app made before the register.
+
 Every command reads the accounts first, shows the whole plan, and asks
 before changing anything. `--commit` applies without asking and `--plan`
 only shows the plan. Each step does only what is missing, so a failed or

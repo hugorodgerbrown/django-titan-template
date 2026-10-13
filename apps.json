@@ -1,0 +1,20 @@
+{
+  "apps": [
+    {
+      "slug": "gondola",
+      "name": "Gondola",
+      "repo": "hugorodgerbrown/gondola",
+      "domain": "gondola.ultraniche.ai",
+      "stage": "new",
+      "updates": true
+    },
+    {
+      "slug": "tally",
+      "name": "Tally",
+      "repo": "hugorodgerbrown/tally",
+      "domain": "tally.ultraniche.ai",
+      "stage": "live",
+      "updates": true
+    }
+  ]
+}

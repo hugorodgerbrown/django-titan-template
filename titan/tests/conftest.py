@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any
 
 import pytest
 
+from titan import TitanError
 from titan.app import App
 from titan.credentials import Settings
 from titan.plans import Context
@@ -229,14 +231,49 @@ class FakeDb:
 
 
 class FakeGitHub:
-    """The repo exists unless told otherwise; render.yaml declares the cron job."""
+    """The repo exists unless told otherwise; render.yaml declares the cron job.
 
-    def __init__(self, exists: bool = True, declares_cron: bool = True) -> None:
-        """Record generations."""
+    Files are kept per (repo, path) with a sha that changes on every write;
+    the register starts empty.
+    """
+
+    def __init__(
+        self,
+        exists: bool = True,
+        declares_cron: bool = True,
+        register: str = "",
+        copier: bool = True,
+    ) -> None:
+        """Record generations and commits."""
         self.exists = exists
         self.declares_cron = declares_cron
         self.generated: list[dict[str, str]] = []
         self.published: list[tuple[str, Path]] = []
+        self.files: dict[tuple[str, str], tuple[str, str]] = {}
+        self.commits: list[str] = []
+        # Whether the app repos carry the template's copier answers.
+        self.copier = copier
+        if register:
+            self.files[("hugorodgerbrown/django-titan-template", "apps.json")] = (register, "sha0")
+
+    def read_file(self, repo: str, path: str) -> tuple[str, str | None]:
+        """The file and its sha, or ("", None)."""
+        if path == ".copier-answers.yml" and self.copier and (repo, path) not in self.files:
+            return "_src_path: gh:hugorodgerbrown/django-titan-template\n", "answers"
+        text, sha = self.files.get((repo, path), ("", None))
+        return text, sha
+
+    def write_file(self, repo: str, path: str, text: str, sha: str | None, message: str) -> None:
+        """Commit, refusing a stale sha the way GitHub does."""
+        if self.files.get((repo, path), ("", None))[1] != sha:
+            raise TitanError(f"{path} changed since it was read")
+        self.files[(repo, path)] = (text, f"sha{len(self.commits) + 1}")
+        self.commits.append(message)
+
+    def register(self) -> list[dict[str, Any]]:
+        """The register's entries as written."""
+        text = self.files.get(("hugorodgerbrown/django-titan-template", "apps.json"), ("", ""))[0]
+        return list(json.loads(text)["apps"]) if text else []
 
     def repo_exists(self, repo: str) -> bool:
         """Whether the repo exists."""

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import base64
+import json
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -372,3 +374,44 @@ def test_fivebar_says_why_a_site_was_not_added(failure: str, message: str) -> No
 
     with pytest.raises(TitanError, match=message):
         Fivebar("fivebar_tok", call).add_site("tally.ultraniche.ai")
+
+
+def test_read_file_decodes_the_contents_and_reads_a_missing_file_as_empty(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The register is read through the contents API; a 404 is an empty file."""
+    monkeypatch.setattr("titan.providers.shutil.which", lambda name: f"/bin/{name}")
+    content = base64.b64encode(b'{"apps": []}\n').decode()
+    run = Recorder(stdout=json.dumps({"content": content, "sha": "abc"}))
+    github = GitHub(run)
+    assert github.read_file("o/t", "apps.json") == ('{"apps": []}\n', "abc")
+    assert run.calls[0][0] == ["gh", "api", "repos/o/t/contents/apps.json"]
+    run.code = 1
+    with pytest.raises(TitanError, match=r"Could not read apps\.json"):
+        github.read_file("o/t", "apps.json")
+
+
+def test_read_file_treats_not_found_as_empty(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A missing file comes back from gh as HTTP 404."""
+    monkeypatch.setattr("titan.providers.shutil.which", lambda name: f"/bin/{name}")
+
+    def run(args: list[str], **_: Any) -> Any:
+        return subprocess.CompletedProcess(args, 1, stdout="", stderr="Not Found (HTTP 404)")
+
+    assert GitHub(run).read_file("o/t", "apps.json") == ("", None)
+
+
+def test_write_file_puts_the_content_with_the_sha_it_replaces() -> None:
+    """The commit carries the old sha, so a file changed meanwhile is refused."""
+    sent: list[dict[str, str]] = []
+
+    def run(args: list[str], input: str = "", **_: Any) -> Any:
+        sent.append(json.loads(input))
+        return subprocess.CompletedProcess(args, 0, stdout="{}", stderr="")
+
+    GitHub(run).write_file("o/t", "apps.json", "x\n", "abc", "Add tally")
+    assert sent == [{"message": "Add tally", "content": "eAo=", "sha": "abc"}]
+    GitHub(run).write_file("o/t", "apps.json", "x\n", None, "Add tally")
+    assert "sha" not in sent[1]
+    with pytest.raises(TitanError, match="may have changed"):
+        GitHub(Recorder(code=1)).write_file("o/t", "apps.json", "x\n", "abc", "m")
