@@ -9,7 +9,7 @@ from django.utils import timezone
 from django.utils.html import escape
 
 from apps.public import conf
-from apps.public.templatetags.site_footer import footer_links
+from apps.public.templatetags.site_footer import footer_anchors, footer_links
 
 pytestmark = pytest.mark.django_db
 
@@ -57,3 +57,9 @@ def test_the_top_left_mark_goes_home(signed_in: Client, url_name: str) -> None:
     content = signed_in.get(reverse(url_name)).content.decode()
     header = content[content.index("<header") : content.index("</header>")]
     assert f'href="{reverse("public:home")}"' in header.split("</a>")[0]
+
+
+def test_link_labels_are_escaped(monkeypatch: Any) -> None:
+    """A label is text, never markup."""
+    monkeypatch.setattr(conf, "LINKS", [("<b>Help</b>", "public:help")])
+    assert footer_anchors() == [f'<a href="{reverse("public:help")}">&lt;b&gt;Help&lt;/b&gt;</a>']
