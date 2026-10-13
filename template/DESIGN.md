@@ -150,17 +150,3 @@ under `/app/`) carries on without it.
   fonts, scripts or stylesheets: they wouldn't be there offline, and the
   CSP blocks them. Analytics are the one exception, and a page works
   without them.
-
-## 10. The page frame
-
-- **The mark top left goes home.** The first link in the header is the
-  app's mark (its icon and name), on every page, and it always goes to the
-  front page (`/`), inside `/app/` too. The front page shows to people
-  who are signed in, so it never bounces them back into the app.
-- **The website has a proper footer; the app has none.** Every public
-  page ends with the site footer: links to Terms, Privacy and Help, and
-  the copyright, `© 2026 Ultraniche` with the current year. Nothing else:
-  no mark, name or strapline. It is one include,
-  `templates/includes/_footer.html`, in `public_base.html`. Pages under
-  `/app/` have no footer: the same links and copyright sit on the account
-  page, under the account icon in the header.
