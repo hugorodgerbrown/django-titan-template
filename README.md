@@ -74,6 +74,7 @@ A launch is one edit to its `apps.json`.
 | MCP (optional) | `/mcp` JSON-RPC endpoint with notes tools, plus the privacy notice, terms and help as Markdown, and an MCP App (`list_notes` drawn as a card in Claude), authenticated by mcp-auth, passing its contract suite |
 | Tests | pytest + FactoryBoy (90% floor), Vitest + fake-indexeddb, three capped Playwright journeys (offline write, offline fallback, passkey) |
 | Lint and types | ruff (format, lint, bandit, docstrings), mypy + django-stubs, pre-commit |
+| Design system | [DESIGN.md](template/DESIGN.md): the rules every app's design system follows (tokens only, limits on colours, type, spacing, corners and shadows, no dead CSS), enforced by `tests/test_design.py`; and a staff-only design page at `/app/design/` showing every token and component state from the real CSS |
 | Onboarding | The rule that every app ships a first-run tour on private demo data, measured in fivebar (a decision record), and a blank script, `docs/onboarding-tour.md`, to fill in before building it. The tour itself is built per app; no tour engine is included yet |
 | Analytics | [fivebar](https://fiveb.ar) visitor counts, no cookies: its tag on every page once `FIVEBAR_DOMAIN` is set (titan sets it at go-live), with private paths counted by their route |
 | Security | Strict CSP (no inline anything), `check --deploy`, semgrep, pip-audit, npm audit, gitleaks, Dependabot |

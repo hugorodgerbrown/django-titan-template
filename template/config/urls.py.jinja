@@ -26,6 +26,7 @@ urlpatterns = [
     # The installed app: everything under /app/ (apps/pwa/conf.py: SCOPE).
     path("app/", include("apps.pwa.urls")),
     path("app/", include("apps.notes.urls")),
+    path("app/", include("apps.design.urls")),
 {%- if include_mcp %}
     path("", include("mcp_auth.urls")),
     path("mcp", mcp, name="mcp"),
