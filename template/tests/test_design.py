@@ -250,3 +250,13 @@ def test_classes_left_off_the_design_page_exist() -> None:
     blocks = {name.split("__")[0].split("--")[0] for name in stylesheet.class_names(CSS)}
     stale = sorted(set(NOT_ON_PAGE) - blocks)
     assert not stale, stale
+
+
+def test_the_design_page_uses_only_real_classes() -> None:
+    """A class on the design page that app.css doesn't define shows nothing true."""
+    page = design_page_source()
+    used: set[str] = set()
+    for attribute in re.findall(r'class="([^"{]*)"', page):
+        used.update(attribute.split())
+    unknown = sorted(used - stylesheet.class_names(CSS))
+    assert not unknown, "remove from the design page, or add to app.css: " + ", ".join(unknown)
