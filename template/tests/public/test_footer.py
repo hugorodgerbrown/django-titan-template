@@ -62,6 +62,4 @@ def test_the_top_left_mark_goes_home(signed_in: Client, url_name: str) -> None:
 def test_link_labels_are_escaped(monkeypatch: Any) -> None:
     """A label is text, never markup."""
     monkeypatch.setattr(conf, "LINKS", [("<b>Help</b>", "public:help")])
-    assert footer_anchors() == [
-        f'<a href="{reverse("public:help")}">&lt;b&gt;Help&lt;/b&gt;</a>'
-    ]
+    assert footer_anchors() == [f'<a href="{reverse("public:help")}">&lt;b&gt;Help&lt;/b&gt;</a>']
