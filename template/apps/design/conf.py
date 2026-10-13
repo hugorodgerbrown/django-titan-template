@@ -17,3 +17,9 @@ NOT_ON_PAGE: dict[str, str] = {
     "htmx-request": "htmx's own request state",
     "outbox-status": "the frame of every page; shown while writes wait to send",
 }
+
+# Classes a framework puts on elements (no template here names them), so the
+# dead-CSS check counts them as used.
+ADDED_BY_FRAMEWORKS: dict[str, str] = {
+    "errorlist": "Django renders it round a form's errors",
+}

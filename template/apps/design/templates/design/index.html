@@ -16,7 +16,7 @@
         <li class="ds-token">
           <span class="ds-swatch" data-token="{{ token.name }}" data-paint="background"></span>
           <code>{{ token.name }}</code>
-          <span class="meta">{{ token.value }}</span>
+          <span class="meta"><span data-token-value="{{ token.name }}">{{ token.value }}</span></span>
         </li>
       {% endfor %}
     </ul>
@@ -28,7 +28,7 @@
       {% for token in families.type %}
         <li class="item">
           <p class="ds-sample" data-token="{{ token.name }}" data-paint="size">Plan the day</p>
-          <span class="meta"><code>{{ token.name }}</code> {{ token.value }}</span>
+          <span class="meta"><code>{{ token.name }}</code> <span data-token-value="{{ token.name }}">{{ token.value }}</span></span>
         </li>
       {% endfor %}
     </ul>
@@ -40,7 +40,7 @@
       {% for token in families.space %}
         <li class="item">
           <span class="ds-bar" data-token="{{ token.name }}" data-paint="width"></span>
-          <span class="meta"><code>{{ token.name }}</code> {{ token.value }}</span>
+          <span class="meta"><code>{{ token.name }}</code> <span data-token-value="{{ token.name }}">{{ token.value }}</span></span>
         </li>
       {% endfor %}
     </ul>
@@ -53,13 +53,26 @@
         <li class="ds-token">
           <span class="ds-corner" data-token="{{ token.name }}" data-paint="radius"></span>
           <code>{{ token.name }}</code>
-          <span class="meta">{{ token.value }}</span>
+          <span class="meta"><span data-token-value="{{ token.name }}">{{ token.value }}</span></span>
         </li>
       {% endfor %}
       {% for token in families.shadow %}
         <li class="ds-token">
           <span class="ds-depth" data-token="{{ token.name }}" data-paint="shadow"></span>
           <code>{{ token.name }}</code>
+          <span class="meta"><span data-token-value="{{ token.name }}">{{ token.value }}</span></span>
+        </li>
+      {% endfor %}
+    </ul>
+  </section>
+
+  <section class="card stack" aria-labelledby="ds-other">
+    <h2 id="ds-other">Fonts and layout</h2>
+    <ul class="item-list">
+      {% for token in families.other %}
+        <li class="item">
+          <code>{{ token.name }}</code>
+          <span class="meta"><span data-token-value="{{ token.name }}">{{ token.value }}</span></span>
         </li>
       {% endfor %}
     </ul>
