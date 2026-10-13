@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static %}
+{% load static site_footer %}
 {% block title %}Account · {{ pwa.name }}{% endblock %}
 {% block extra_js %}
   <script src="{% static 'js/webauthn_json.js' %}" defer></script>
@@ -44,5 +44,10 @@
       <p class="form-error" data-passkey-error role="alert" hidden></p>
     </div>
     <p class="meta" data-passkey-unsupported>This browser can't make passkeys.</p>
+  </section>
+  {# The app has no footer, so its links are here (DESIGN.md). #}
+  <section class="card stack">
+    <h2>About {{ pwa.name }}</h2>
+    {% site_links %}
   </section>
 {% endblock %}
