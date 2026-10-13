@@ -15,6 +15,7 @@ Titan apps started without it.
 ## Decision
 
 - Every app has a Linear project in the Titan team, named after the app.
+  `titan new` doesn't make it: Claude creates it before the first issue.
 - Every PR maps to exactly one issue in that project, and every issue to
   one PR.
 - Claude creates the issue before development starts, with the scope.
