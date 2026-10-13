@@ -6,7 +6,11 @@ name: Template CI
 on:
   push:
     branches: [main]
+    # titan commits apps.json to main when an app is made or goes live;
+    # the register changes nothing a generated project contains.
+    paths-ignore: ["apps.json"]
   pull_request:
+    paths-ignore: ["apps.json"]
   schedule:
     - cron: "0 6 * * 1" # weekly: dependency drift shows up without a push
   workflow_dispatch:

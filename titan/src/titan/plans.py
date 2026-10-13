@@ -16,6 +16,9 @@ by hand), adds the app's site to fivebar (by hand when there is no
 FIVEBAR_API_KEY), sets SITE_URL and FIVEBAR_DOMAIN, deploys and checks
 /healthz on the real address.
 
+`new` and `golive` each end by recording the app in the register of Titan
+apps (titan.register): at stage ``new``, then ``live``.
+
 Every step is safe to re-run: each one reads what exists and only does
 what is missing.
 """
@@ -30,7 +33,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from titan import TitanError
+from titan import TitanError, register
 from titan.app import APP_KEYS, COMMON_GROUP, FIVEBAR_SITES, App, common_env
 from titan.providers import DEPLOY_DONE, Fivebar, GitHub, Render, Resend, SharedDb, health
 from titan.steps import Plan, Progress, Step
@@ -145,6 +148,8 @@ def plan_new(ctx: Context) -> Plan:
     deploy = f"Next: work on it, then `titan deploy {app.slug}` sets it up on Render."
     if ctx.github.repo_exists(app.repo):
         plan.add(f"GitHub repo {app.repo}")
+        # An app made before the register is added to it here.
+        _register(ctx, plan, "new")
         plan.finish = deploy
         return plan
     answers = {"project_name": app.name, "project_slug": app.slug, **ctx.answers}
@@ -157,8 +162,35 @@ def plan_new(ctx: Context) -> Plan:
         f"Create the private repo {app.repo} and push the first commit",
         run=lambda _: ctx.github.publish(app.repo, ctx.workdir / app.slug),
     )
+    _register(ctx, plan, "new")
     plan.finish = f"{ctx.workdir / app.slug} is ready. {deploy}"
     return plan
+
+
+def _register(ctx: Context, plan: Plan, stage: str) -> None:
+    """Record the app in the register of Titan apps at this stage, unless it already is."""
+    app, github = ctx.app, ctx.github
+    text, _ = github.read_file(register.REPO, register.PATH)
+    where = f"{register.PATH} in {register.REPO}"
+    if register.is_current(register.parse(text), app, stage):
+        entry = register.find(register.parse(text), app.slug) or {}
+        plan.add(f"In the register of Titan apps as {entry.get('stage', stage)}", where)
+        return
+
+    def write(_: Progress) -> None:
+        # Read again: the sha must be the one being replaced, or GitHub refuses.
+        text, sha = github.read_file(register.REPO, register.PATH)
+        apps = register.record(register.parse(text), app, stage)
+        verb = "Add" if register.find(register.parse(text), app.slug) is None else "Update"
+        github.write_file(
+            register.REPO,
+            register.PATH,
+            register.render(apps),
+            sha,
+            f"{verb} {app.slug} in the register of Titan apps ({stage})",
+        )
+
+    plan.add(f"Record {app.slug} in the register of Titan apps as {stage}", where, run=write)
 
 
 # ---------------------------------------------------------------- deploy
@@ -551,5 +583,6 @@ def plan_golive(ctx: Context) -> Plan:
     changes = [*pending, *(["DJANGO_ALLOWED_HOSTS"] if extra_hosts else [])]
     title = f"Set {', '.join(changes)}, deploy, " if changes else ""
     plan.add(f"{title}check {site_url}/healthz", run=switch)
+    _register(ctx, plan, "live")
     plan.finish = f"{app.name} is live at {site_url}."
     return plan

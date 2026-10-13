@@ -10,7 +10,7 @@
 # names and env groups the template's render.yaml uses.
 [project]
 name = "titan"
-version = "2.0.0"
+version = "2.1.0"
 description = "Provision and launch a Titan app on Render, shared-db and Resend"
 readme = "README.md"
 requires-python = ">=3.12"

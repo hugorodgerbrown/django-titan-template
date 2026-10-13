@@ -1,0 +1,12 @@
+{
+  "apps": [
+    {
+      "slug": "tally",
+      "name": "Tally",
+      "repo": "hugorodgerbrown/tally",
+      "domain": "tally.ultraniche.ai",
+      "stage": "live",
+      "updates": true
+    }
+  ]
+}

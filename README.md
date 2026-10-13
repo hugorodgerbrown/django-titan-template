@@ -55,6 +55,25 @@ copier update --trust
 Copier replays your answers against the newer template and shows the
 difference as a normal merge: review it like any PR.
 
+## The register of Titan apps
+
+[apps.json](apps.json) lists every app made from this template, so
+anything that has to reach all of them, such as the routine that runs
+`copier update` in each and opens a PR, reads one file:
+
+```json
+{"slug": "tally", "name": "Tally", "repo": "hugorodgerbrown/tally",
+ "domain": "tally.ultraniche.ai", "stage": "live", "updates": true}
+```
+
+titan keeps it: `titan new` adds the app at stage `new` (and adds an app
+made before the register when run on its existing repo), and `titan golive`
+moves it to `live`. Each is a commit to `main` here. `updates` starts
+`true` and titan never changes it; set it to `false` in a PR to stop
+update PRs for one app, for example during a rewrite. Only apps made with
+copier belong in it: an app with no `.copier-answers.yml` has nothing for
+`copier update` to replay.
+
 ## The ultraniche.ai homepage
 
 The page at ultraniche.ai that reveals the Titan apps one at a time lives in

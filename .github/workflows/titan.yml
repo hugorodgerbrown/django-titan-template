@@ -1,13 +1,14 @@
 # Lint, type-check and test titan, the app provisioner (titan/). It talks to
 # Render, Resend, GitHub, 1Password and shared-db; the tests fake all of them.
+# It also checks apps.json, the register of Titan apps that titan writes.
 name: titan
 
 on:
   push:
     branches: [main]
-    paths: ["titan/**", ".github/workflows/titan.yml"]
+    paths: ["titan/**", "apps.json", ".github/workflows/titan.yml"]
   pull_request:
-    paths: ["titan/**", ".github/workflows/titan.yml"]
+    paths: ["titan/**", "apps.json", ".github/workflows/titan.yml"]
   workflow_dispatch:
 
 concurrency:
