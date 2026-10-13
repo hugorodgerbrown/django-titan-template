@@ -26,7 +26,7 @@ from titan import TitanError, __version__, credentials
 from titan.app import SLUG, App
 from titan.credentials import Settings
 from titan.plans import Context, plan_deploy, plan_golive, plan_new
-from titan.providers import GitHub, Render, Resend, SharedDb
+from titan.providers import Fivebar, GitHub, Render, Resend, SharedDb
 from titan.steps import Plan, execute
 from titan.ui import Ask, LiveView, header
 
@@ -208,6 +208,7 @@ def main(argv: list[str] | None = None) -> int:
             resend=Resend(settings.resend_api_key),
             db=SharedDb(settings.db_admin_url),
             github=GitHub(),
+            fivebar=Fivebar(settings.fivebar_api_key) if settings.fivebar_api_key else None,
             owner_id=owner_id,
             workdir=getattr(args, "dir", None) or Path.cwd(),
             answers=answers,

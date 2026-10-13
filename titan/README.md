@@ -25,11 +25,11 @@ titan status tally    # what exists and what is missing; changes nothing
 titan                 # asks which of these, then asks about the app
 ```
 
-`golive` also turns on the app's visitor counts: it sets `FIVEBAR_DOMAIN`
-to the app's domain, and lists adding that site at
-[fiveb.ar/sites](https://fiveb.ar/sites) as a step to do by hand, since
-fivebar has no API for it. Until the site is added there, nothing is
-counted.
+`golive` also turns on the app's visitor counts: it adds the app's
+domain as a site on fivebar and sets `FIVEBAR_DOMAIN` to it. Adding the
+site needs `FIVEBAR_API_KEY` (below); without it, golive lists adding
+the site at [fiveb.ar/sites](https://fiveb.ar/sites) as a step to do by
+hand. Until the site is on fivebar, nothing is counted.
 
 Every command reads the accounts first, shows the whole plan, and asks
 before changing anything. `--commit` applies without asking and `--plan`
@@ -52,7 +52,7 @@ anything that changed, and checks `/healthz`.
 
 ## Keys
 
-Three account-wide keys, looked for in this order:
+Three account-wide keys (and an optional fourth, `FIVEBAR_API_KEY`), looked for in this order:
 
 1. **1Password:** an item named `Titan` (set `TITAN_OP_ITEM` to change it,
    and `TITAN_OP_VAULT` to pick a vault) with one field per key, labelled
@@ -70,6 +70,7 @@ those up.
 | `RENDER_API_KEY` | Render API key (Account settings, API keys) |
 | `RESEND_API_KEY` | a **full-access** Resend key: it creates each app's sending-only key |
 | `TITAN_DB_ADMIN_URL` | shared-db's External Database URL. shared-db only accepts its allowlisted IP addresses |
+| `FIVEBAR_API_KEY` | optional, and never asked for: a fivebar API token (Settings, API tokens) allowed to add sites. Without it, golive's fivebar step is by hand |
 
 Optional settings can go in the environment or in the file:
 - `TITAN_DOMAIN` (default `ultraniche.ai`)

@@ -38,7 +38,7 @@ APP_KEYS = (
     # The site's domain in fivebar, which turns the visitor counts on.
     "FIVEBAR_DOMAIN",
 )
-# Where a site is added to fivebar; it has no API for that.
+# Where a site is added to fivebar by hand, when titan has no token to do it.
 FIVEBAR_SITES = "https://fiveb.ar/sites"
 
 

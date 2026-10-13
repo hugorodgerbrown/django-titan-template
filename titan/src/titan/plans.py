@@ -12,9 +12,9 @@ Then it waits for the Blueprint, links the groups if Render did not, adds
 the custom domain, deploys whatever changed and checks /healthz.
 
 `golive` waits for Render to verify the domain (after the CNAME is added
-by hand), sets SITE_URL and FIVEBAR_DOMAIN (the site is added to fivebar by
-hand too: it has no API for that), deploys and checks /healthz on the real
-address.
+by hand), adds the app's site to fivebar (by hand when there is no
+FIVEBAR_API_KEY), sets SITE_URL and FIVEBAR_DOMAIN, deploys and checks
+/healthz on the real address.
 
 Every step is safe to re-run: each one reads what exists and only does
 what is missing.
@@ -32,7 +32,7 @@ from typing import Any
 
 from titan import TitanError
 from titan.app import APP_KEYS, COMMON_GROUP, FIVEBAR_SITES, App, common_env
-from titan.providers import DEPLOY_DONE, GitHub, Render, Resend, SharedDb, health
+from titan.providers import DEPLOY_DONE, Fivebar, GitHub, Render, Resend, SharedDb, health
 from titan.steps import Plan, Progress, Step
 
 
@@ -48,6 +48,8 @@ class Context:
     owner_id: str
     workdir: Path = field(default_factory=Path.cwd)
     answers: dict[str, str] = field(default_factory=dict)
+    # None without a FIVEBAR_API_KEY: the site is then added by hand.
+    fivebar: Fivebar | None = None
     deploy_timeout: float = 900
     blueprint_timeout: float = 1800
     verify_timeout: float = 600
@@ -454,6 +456,24 @@ def check_health(ctx: Context, url: str, progress: Progress) -> None:
 # ---------------------------------------------------------------- golive
 
 
+def _fivebar_site(ctx: Context, plan: Plan) -> None:
+    """The app's site on fivebar, which its FIVEBAR_DOMAIN counts under."""
+    domain, fivebar = ctx.app.domain, ctx.fivebar
+    if fivebar is None:
+        plan.add(
+            f"In fivebar: add the site {domain}",
+            f"by hand, at {FIVEBAR_SITES} (or give titan a FIVEBAR_API_KEY)",
+        )
+    elif fivebar.has_site(domain):
+        plan.add(f"fivebar site {domain}")
+    else:
+        plan.add(
+            f"Add the site {domain} to fivebar",
+            "its visitor counts start once FIVEBAR_DOMAIN is deployed",
+            run=lambda _: fivebar.add_site(domain),
+        )
+
+
 def plan_golive(ctx: Context) -> Plan:
     """Work out what `golive` still has to do."""
     app, render = ctx.app, ctx.render
@@ -470,7 +490,7 @@ def plan_golive(ctx: Context) -> Plan:
     plan.add(
         f"In Squarespace (DNS for {app.settings.domain}): CNAME  {label}  →  {target}", "by hand"
     )
-    plan.add(f"In fivebar: add the site {app.domain}", f"by hand, at {FIVEBAR_SITES}")
+    _fivebar_site(ctx, plan)
 
     domain = next(
         (d for d in render.custom_domains(web["id"]) if d.get("name") == app.domain), None

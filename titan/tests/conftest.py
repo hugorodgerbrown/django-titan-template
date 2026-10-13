@@ -179,6 +179,24 @@ class FakeResend:
         return "re_app_key"
 
 
+class FakeFivebar:
+    """fivebar in memory: the account's sites, and those added this run."""
+
+    def __init__(self, sites: set[str] | None = None) -> None:
+        """Start with these sites."""
+        self.sites = set(sites or ())
+        self.added: list[str] = []
+
+    def has_site(self, domain: str) -> bool:
+        """Whether the site is on the account."""
+        return domain in self.sites
+
+    def add_site(self, domain: str) -> None:
+        """Add the site."""
+        self.sites.add(domain)
+        self.added.append(domain)
+
+
 class FakeDb:
     """shared-db in memory."""
 
@@ -300,6 +318,7 @@ def make_ctx(app: App, tmp_path: Path, checked: list[str]) -> Any:
         db: FakeDb | None = None,
         github: FakeGitHub | None = None,
         resend: FakeResend | None = None,
+        fivebar: FakeFivebar | None = None,
     ) -> Context:
         ticks = iter(range(0, 1_000_000, 10))
         return Context(
@@ -308,6 +327,7 @@ def make_ctx(app: App, tmp_path: Path, checked: list[str]) -> Any:
             resend=resend or FakeResend(),  # type: ignore[arg-type]
             db=db or FakeDb(),  # type: ignore[arg-type]
             github=github or FakeGitHub(),  # type: ignore[arg-type]
+            fivebar=fivebar,  # type: ignore[arg-type]
             owner_id="tea-1",
             workdir=tmp_path,
             sleep=lambda _: None,
