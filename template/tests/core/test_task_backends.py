@@ -34,19 +34,38 @@ def fail() -> None:
     raise ConnectionRefusedError("mail relay unreachable")
 
 
+started: list[threading.Thread] = []
+
+
+class RecordedThread(threading.Thread):
+    """A thread that notes itself as it starts, so a test can join it after it ends."""
+
+    def start(self) -> None:
+        """Record this thread, then start it."""
+        started.append(self)
+        super().start()
+
+
 @pytest.fixture(autouse=True)
-def _threaded(settings: Any) -> None:
-    """Use the app's own backend, which tests otherwise swap out."""
+def _threaded(settings: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Use the app's own backend, which tests otherwise swap out, and record its threads."""
     settings.TASKS = THREADED
+    monkeypatch.setattr("apps.core.task_backends.threading.Thread", RecordedThread)
     release.clear()
     seen.clear()
+    started.clear()
 
 
-def join(result: Any) -> None:
-    """Wait for the thread running ``result``'s task to finish."""
-    thread = next(t for t in threading.enumerate() if t.name == f"task-{result.id}")
+def join(name: str) -> threading.Thread:
+    """Wait for the task thread called ``name`` to finish, and return it.
+
+    Found among the threads recorded as they started, not the live ones: a
+    task that has already finished is no longer live.
+    """
+    [thread] = [t for t in started if t.name == name]
     thread.join(timeout=5)
     assert not thread.is_alive()
+    return thread
 
 
 def test_enqueue_returns_before_the_task_runs() -> None:
@@ -54,7 +73,7 @@ def test_enqueue_returns_before_the_task_runs() -> None:
     result = note_thread.enqueue()
     assert "thread" not in seen
     release.set()
-    join(result)
+    join(f"task-{result.id}")
     assert seen["thread"] is not threading.current_thread()
     assert result.status == TaskResultStatus.SUCCESSFUL
 
@@ -63,7 +82,7 @@ def test_a_failed_task_is_logged(caplog: pytest.LogCaptureFixture) -> None:
     """A task that raises is logged at ERROR with its traceback, not lost."""
     with caplog.at_level(logging.ERROR, logger="django.tasks"):
         result = fail.enqueue()
-        join(result)
+        join(f"task-{result.id}")
     assert result.status == TaskResultStatus.FAILED
     [record] = [r for r in caplog.records if r.levelno == logging.ERROR]
     assert record.exc_info
@@ -89,7 +108,7 @@ def test_the_sign_in_email_is_sent_off_the_request(
     assert response.status_code == 302
     assert not mail.outbox
     send.set()
-    [thread] = [t for t in threading.enumerate() if t.name.startswith("task-")]
-    thread.join(timeout=5)
+    [name] = [t.name for t in started if t.name.startswith("task-")]
+    thread = join(name)
     assert seen["thread"] is thread
     assert mail.outbox[0].to == ["walker@example.com"]
