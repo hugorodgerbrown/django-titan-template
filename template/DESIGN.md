@@ -154,10 +154,9 @@ under `/app/`) carries on without it.
 ## 10. Every page has the same frame
 
 - **The mark top left goes home.** The first link in the header is the
-  app's mark (its icon and name), on every page, and it goes home: to the
-  front page (`/`) on the public pages, and to the app's start page (the
-  manifest's `start_url`) inside `/app/`, where leaving the app's scope
-  would open a browser.
+  app's mark (its icon and name), on every page, and it always goes to the
+  front page (`/`), inside `/app/` too. The front page shows to people
+  who are signed in, so it never bounces them back into the app.
 - **Every site has a proper footer.** Every page, public or in the app,
   ends with the site footer: the app's name, a copyright line with the
   year and the name (`© 2026 Gondola`), and links to Terms, Privacy and

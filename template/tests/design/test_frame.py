@@ -46,11 +46,15 @@ def test_the_mark_on_a_public_page_goes_to_the_front_page(client: Client, db: No
     assert first_header_link(html) == reverse("public:home")
 
 
-def test_the_mark_in_the_app_goes_to_its_start_page(signed_in: Client) -> None:
-    """Inside /app/, the mark goes to the app's start page, so it stays in the app."""
-    url = start_url(signed_in)
-    html = signed_in.get(url).content.decode()
-    assert first_header_link(html) == url
+def test_the_mark_in_the_app_goes_to_the_front_page(signed_in: Client) -> None:
+    """Inside /app/ too, the mark goes to the front page."""
+    html = signed_in.get(start_url(signed_in)).content.decode()
+    assert first_header_link(html) == reverse("public:home")
+
+
+def test_the_front_page_shows_to_people_signed_in(signed_in: Client) -> None:
+    """The mark's destination is the front page itself, not a redirect back into the app."""
+    assert signed_in.get(reverse("public:home")).status_code == 200
 
 
 def test_every_page_ends_with_the_site_footer(client: Client, signed_in: Client) -> None:
