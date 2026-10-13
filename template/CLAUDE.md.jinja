@@ -20,6 +20,8 @@ apps/public/     the public pages: /, /terms/, /privacy/, /help/ (placeholders);
 apps/pwa/        /app/manifest.webmanifest, /app/sw.js, /app/offline/;
                  conf.py holds the app's identity, SCOPE and the precache list
 apps/notes/      the example offline-capable feature, at /app/; replace it
+apps/design/     the design page (/app/design/, staff only): every token
+                 and every component state (DESIGN.md)
 {%- if include_mcp %}
 apps/mcp/        the MCP endpoint (/mcp) and its tools; auth is mcp-auth.
                  privacy_policy, terms_of_service and help return the
@@ -29,7 +31,8 @@ apps/mcp/        the MCP endpoint (/mcp) and its tools; auth is mcp-auth.
 {%- endif %}
 templates/       base.html (the app, /app/), public_base.html, includes
 static/js/       plain JavaScript, classic scripts, no build step
-static/css/      app.css: tokens on :root, components below
+static/css/      app.css: the design system's tokens on :root, components
+                 below (DESIGN.md)
 docs/            accounts, testing, user-testing, onboarding-tour, pwa,
                  security, performance, decisions/
 .claude/skills/  writing the Titan docs kept in Linear (research, user
@@ -74,8 +77,10 @@ queryset, a factory in `tests/factories.py`, and tests. Use `uuid`, never
   are `@require_htmx`.
 - No inline `<script>`, `style=` or `on*=` in templates: the CSP blocks
   them and `tests/test_security.py` fails the build.
-- Style with the tokens in `static/css/app.css`; add a component class
-  there rather than one-off values.
+- Follow [DESIGN.md](DESIGN.md) on every UI change: check the design
+  page (`/app/design/`) first, use tokens and never raw values, show every
+  new component and state on the page, and delete dead CSS.
+  `tests/test_design.py` enforces it.
 - A page should work without JavaScript; JavaScript makes it better.
 - Signed-in pages live under `/app/` (the installed app's scope) and
   extend `base.html`; public pages sit outside it and extend
