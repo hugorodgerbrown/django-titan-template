@@ -31,6 +31,8 @@ Titan apps started without it.
 
 - Every session needs the Linear MCP server. Without it, Claude drafts
   the issue as Markdown and waits rather than starting unticketed work.
+- Dependabot's version bumps are exempt: they carry no decision, and
+  the PR itself is their record.
 - Small fixes cost an issue too. That is the price of a complete
   history; split work rather than bundling two issues into one PR.
 - The project's Linear issues, not the git log, are where to look first
