@@ -1,0 +1,115 @@
+"""The page frame and offline rules in DESIGN.md (sections 8 to 10).
+
+The mark top left goes home, every page ends with the site footer, and
+every script a page under /app/ loads is there offline.
+"""
+
+import re
+from pathlib import Path
+
+from django.conf import settings
+from django.test import Client
+from django.urls import reverse
+
+from apps.design.conf import NEEDS_NETWORK
+from apps.pwa import conf as pwa_conf
+
+BASE = Path(settings.BASE_DIR)
+TEMPLATES = BASE / "templates"
+
+
+def first_header_link(html: str) -> str:
+    """The href of the first link in the page's header."""
+    header = re.search(r"<header\b.*?</header>", html, re.DOTALL)
+    assert header, "the page has no <header>"
+    link = re.search(r"<a\b[^>]*\bhref=\"([^\"]*)\"", header.group(0))
+    assert link, "the header has no link"
+    return link.group(1)
+
+
+def footer(html: str) -> str:
+    """The page's site footer."""
+    found = re.search(r"<footer\b.*?</footer>", html, re.DOTALL)
+    assert found, "the page has no <footer>"
+    return found.group(0)
+
+
+def start_url(client: Client) -> str:
+    """The installed app's start page, as its manifest gives it."""
+    url: str = client.get(reverse("pwa:manifest")).json()["start_url"]
+    return url
+
+
+def test_the_mark_on_a_public_page_goes_to_the_front_page(client: Client, db: None) -> None:
+    """On a public page, the mark goes to the front page."""
+    html = client.get(reverse("public:terms")).content.decode()
+    assert first_header_link(html) == reverse("public:home")
+
+
+def test_the_mark_in_the_app_goes_to_its_start_page(signed_in: Client) -> None:
+    """Inside /app/, the mark goes to the app's start page, so it stays in the app."""
+    url = start_url(signed_in)
+    html = signed_in.get(url).content.decode()
+    assert first_header_link(html) == url
+
+
+def test_every_page_ends_with_the_site_footer(client: Client, signed_in: Client) -> None:
+    """Public pages and app pages alike end with the footer and its links."""
+    pages = [
+        client.get(reverse("public:home")).content.decode(),
+        signed_in.get(start_url(signed_in)).content.decode(),
+    ]
+    for html in pages:
+        links = footer(html)
+        for name in ("public:terms", "public:privacy", "public:help"):
+            assert f'href="{reverse(name)}"' in links, name
+
+
+def test_every_page_fits_the_screen() -> None:
+    """Both base templates carry the viewport meta."""
+    head = (TEMPLATES / "includes" / "_head.html").read_text()
+    assert 'name="viewport" content="width=device-width' in head
+    for base in ("base.html", "public_base.html"):
+        assert '{% include "includes/_head.html" %}' in (TEMPLATES / base).read_text()
+
+
+def test_the_app_frame_shows_when_its_offline() -> None:
+    """The app's frame has the offline banner."""
+    assert "data-offline-banner" in (TEMPLATES / "base.html").read_text()
+
+
+def app_templates() -> list[Path]:
+    """The app's frame and every template that extends it (the pages under /app/)."""
+    frame = [TEMPLATES / "base.html"]
+    frame += [
+        TEMPLATES / "includes" / name for name in ("_launch_shell.html", "_outbox_status.html")
+    ]
+    pages = [
+        path
+        for path in sorted((BASE / "apps").glob("*/templates/**/*.html"))
+        if re.search(r"{%\s*extends\s+[\"']base\.html[\"']", path.read_text())
+    ]
+    return frame + pages
+
+
+def loaded_static(path: Path) -> set[str]:
+    """The scripts and stylesheets a template loads with {% static %}."""
+    return set(re.findall(r"{%\s*static\s+[\"']([^\"']+\.(?:js|css))[\"']", path.read_text()))
+
+
+def test_the_app_opens_offline() -> None:
+    """Every script and stylesheet a page under /app/ loads is precached, or needs the network."""
+    missing = sorted(
+        f"{path.name}: {name}"
+        for path in app_templates()
+        for name in loaded_static(path)
+        if name not in pwa_conf.PRECACHE_STATIC and name not in NEEDS_NETWORK
+    )
+    assert not missing, "precache these, or list them in NEEDS_NETWORK: " + "; ".join(missing)
+
+
+def test_what_needs_the_network_is_still_loaded() -> None:
+    """An entry in NEEDS_NETWORK for a file no app page loads is stale."""
+    loaded = set().union(*(loaded_static(path) for path in app_templates()))
+    stale = sorted(set(NEEDS_NETWORK) - loaded)
+    assert not stale, stale
