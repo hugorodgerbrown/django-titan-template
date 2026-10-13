@@ -64,6 +64,15 @@ describe('code boxes', () => {
     expect(document.querySelector('label').htmlFor).toBe(wrapped[0].id);
   });
 
+  it('holds back a short code and goes to the first empty box', () => {
+    type(boxes[0], '1');
+    const event = new Event('submit', { cancelable: true });
+    form.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(boxes[1]);
+    expect(boxes.every((box) => box.required)).toBe(true);
+  });
+
   it('ignores anything but digits', () => {
     type(boxes[0], 'a');
     expect(boxes[0].value).toBe('');
