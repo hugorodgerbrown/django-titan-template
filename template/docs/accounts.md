@@ -97,8 +97,11 @@ uv run python manage.py createsuperuser --username you@example.com --email you@e
 Sent through `MAILERS["default"]`: the console in development, SMTP in
 production (`EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`,
 `EMAIL_HOST_PASSWORD`, `DEFAULT_FROM_EMAIL`). Views only enqueue
-`send_sign_in_email`; `TASKS` uses the immediate backend, which runs it in
-the request. Swap in a queue-backed backend and a worker when volume needs it.
+`send_sign_in_email`; `TASKS` uses `apps.core.task_backends.ThreadBackend`,
+which sends it on a thread of its own, so the page answers while the mail
+relay is still talking. A failed send is logged (`django.tasks`, ERROR).
+Tests run tasks inline, so mail is in the outbox before the response. Swap in
+a queue-backed backend and a worker when volume needs it.
 
 ## Signing out
 
