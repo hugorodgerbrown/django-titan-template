@@ -237,7 +237,13 @@ class FakeGitHub:
     the register starts empty.
     """
 
-    def __init__(self, exists: bool = True, declares_cron: bool = True, register: str = "") -> None:
+    def __init__(
+        self,
+        exists: bool = True,
+        declares_cron: bool = True,
+        register: str = "",
+        copier: bool = True,
+    ) -> None:
         """Record generations and commits."""
         self.exists = exists
         self.declares_cron = declares_cron
@@ -245,11 +251,15 @@ class FakeGitHub:
         self.published: list[tuple[str, Path]] = []
         self.files: dict[tuple[str, str], tuple[str, str]] = {}
         self.commits: list[str] = []
+        # Whether the app repos carry the template's copier answers.
+        self.copier = copier
         if register:
             self.files[("hugorodgerbrown/django-titan-template", "apps.json")] = (register, "sha0")
 
     def read_file(self, repo: str, path: str) -> tuple[str, str | None]:
         """The file and its sha, or ("", None)."""
+        if path == ".copier-answers.yml" and self.copier and (repo, path) not in self.files:
+            return "_src_path: gh:hugorodgerbrown/django-titan-template\n", "answers"
         text, sha = self.files.get((repo, path), ("", None))
         return text, sha
 

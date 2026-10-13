@@ -148,8 +148,16 @@ def plan_new(ctx: Context) -> Plan:
     deploy = f"Next: work on it, then `titan deploy {app.slug}` sets it up on Render."
     if ctx.github.repo_exists(app.repo):
         plan.add(f"GitHub repo {app.repo}")
-        # An app made before the register is added to it here.
-        _register(ctx, plan, "new")
+        # An app made before the register is added to it here, if copier made it:
+        # the register exists to drive `copier update`, which needs the answers.
+        copier_answers, _ = ctx.github.read_file(app.repo, ".copier-answers.yml")
+        if "django-titan-template" in copier_answers:
+            _register(ctx, plan, "new")
+        else:
+            plan.add(
+                f"{app.repo} was not made with copier from the template",
+                "no .copier-answers.yml, so it stays out of the register of Titan apps",
+            )
         plan.finish = deploy
         return plan
     answers = {"project_name": app.name, "project_slug": app.slug, **ctx.answers}

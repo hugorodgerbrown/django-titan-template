@@ -89,6 +89,18 @@ def test_new_on_an_existing_repo_registers_an_app_made_before_the_register(
     assert [e["slug"] for e in github.register()] == ["tally"]
 
 
+def test_new_leaves_a_repo_copier_did_not_make_out_of_the_register(make_ctx: Any) -> None:
+    """With no copier answers there is nothing for `copier update` to replay."""
+    github = FakeGitHub(copier=False)
+    plan = plan_new(make_ctx(github=github))
+    assert plan.changes == 0
+    assert (
+        plan.steps[-1].title == "hugorodgerbrown/tally was not made with copier from the template"
+    )
+    run(plan)
+    assert github.commits == []
+
+
 def test_deploy_needs_the_repo_on_github(make_ctx: Any) -> None:
     """Render builds from GitHub, so deploy refuses an app that is not there yet."""
     with pytest.raises(TitanError, match="titan new tally"):
