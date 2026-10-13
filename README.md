@@ -18,7 +18,8 @@ cd my-project && uv run tox
 `--trust` lets the template run its post-generation tasks: draw placeholder
 icons, write `uv.lock` and `package-lock.json`, and `git init`.
 
-Questions: the product name, slug, description, author, brand colour,
+Questions: the product name, slug, description, author, copyright holder
+(for the site footer), brand colour,
 whether to serve an MCP endpoint through
 [mcp-auth](https://github.com/hugorodgerbrown/mcp-auth) (and which release,
 and who may connect), and the Render region.

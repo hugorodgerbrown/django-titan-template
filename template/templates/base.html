@@ -27,7 +27,7 @@
   <body>
     {% include "includes/_launch_shell.html" %}
     <header class="app-header">
-      <a class="app-header__name" href="{% url 'notes:list' %}">{{ pwa.name }}</a>
+      <a class="app-header__name" href="{% url 'public:home' %}">{{ pwa.name }}</a>
       {% include "includes/_outbox_status.html" %}
       {% if user.is_authenticated %}
         <a class="app-header__link" href="{% url 'accounts:account' %}">Account</a>
@@ -39,6 +39,5 @@
     <main class="app-main">
       {% block content %}{% endblock %}
     </main>
-    {% include "includes/_footer.html" %}
   </body>
 </html>

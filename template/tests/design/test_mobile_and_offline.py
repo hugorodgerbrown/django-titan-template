@@ -1,4 +1,4 @@
-"""The mobile-first and offline rules in DESIGN.md (sections 8 and 9).
+"""The mobile-first and offline rules in DESIGN.md (sections 10 and 11).
 
 Every page fits a phone's screen, the app's frame says when it's offline,
 and every script a page under /app/ loads is there offline.

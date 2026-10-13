@@ -10,7 +10,6 @@ same goes for a script under /app/ that isn't precached for offline use.
 NOT_ON_PAGE: dict[str, str] = {
     "app-header": "the frame of every page, the design page included",
     "app-main": "the frame of every page, the design page included",
-    "site-footer": "the frame of every page, the design page included",
     "offline-banner": "the frame of every page; shown while offline",
     "launch-shell": "covers the whole screen while the app launches",
     "app-launching": "the state the launch screen is in, set on <html>",
@@ -26,7 +25,7 @@ ADDED_BY_FRAMEWORKS: dict[str, str] = {
 }
 
 # Scripts and stylesheets a page under /app/ loads that aren't precached,
-# because they only work with the network anyway (DESIGN.md, section 9).
+# because they only work with the network anyway (DESIGN.md, section 11).
 NEEDS_NETWORK: dict[str, str] = {
     "js/analytics.js": "analytics only send with the network; pages work without them",
     "js/webauthn_json.js": "passkeys need the server to sign in or register",

@@ -116,7 +116,28 @@ raising the limit; a limit changes here, for every app, or not at all.
 - Colour is never the only signal: a state also changes a shape, an icon
   or a word.
 
-## 8. Mobile first
+## 8. The website has a footer; the app has its links
+
+Every public page (`public_base.html`) ends with the site footer, the
+`{% site_footer %}` tag: links to at least Help, Terms and Privacy, then
+`© <this year> <holder>. All rights reserved.` Nothing else: the header
+already names the site.
+
+The installed app (`base.html`, under `/app/`) has no footer: it is an
+app, not a website. Its account page, behind the header's account link,
+lists the same links and copyright with `{% site_links %}`.
+
+The holder and the links are set in `apps/public/conf.py`; the markup and
+styles are the shared component. `tests/public/test_footer.py` checks both.
+
+## 9. The top-left mark always goes home
+
+The site's name or icon at the top left links to the front page
+(`public:home`) on every page, public or signed in. Nothing else (the
+app's first screen, the account page) takes that place; the app's own
+navigation does that job.
+
+## 10. Mobile first
 
 A Titan app is used on a phone, in one hand, more than anywhere else.
 Design every screen for that first; a wider screen gets more room, never
@@ -132,7 +153,7 @@ more features.
 - Tap targets are 44px (section 7), and the main action on a screen sits
   where a thumb reaches it.
 
-## 9. Design for offline
+## 11. Design for offline
 
 The signal drops in a lift, a tunnel or on a train. The app (everything
 under `/app/`) carries on without it.

@@ -1,4 +1,4 @@
-{% load static %}<!doctype html>
+{% load static site_footer %}<!doctype html>
 {# The public pages: home, terms, privacy and signing in. No service worker, no outbox. #}
 <html lang="en-GB">
   <head>
@@ -19,6 +19,6 @@
     <main class="app-main">
       {% block content %}{% endblock %}
     </main>
-    {% include "includes/_footer.html" %}
+    {% site_footer %}
   </body>
 </html>
