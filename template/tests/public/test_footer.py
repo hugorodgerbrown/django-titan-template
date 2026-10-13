@@ -45,7 +45,13 @@ def test_a_link_can_name_part_of_a_page(monkeypatch: Any) -> None:
 def test_the_tagline_shows_only_when_set(client: Client, monkeypatch: Any) -> None:
     """An empty tagline leaves no empty line."""
     monkeypatch.setattr(conf, "TAGLINE", "")
-    assert 'class="site-footer__tagline"' not in client.get(reverse("public:help")).content.decode()
+    assert (
+        'class="site-footer__tagline"'
+        not in client.get(reverse("public:help")).content.decode()
+    )
     monkeypatch.setattr(conf, "TAGLINE", "Notes that work offline.")
     assert site_footer()["tagline"] == "Notes that work offline."
-    assert "Notes that work offline." in client.get(reverse("public:help")).content.decode()
+    assert (
+        "Notes that work offline."
+        in client.get(reverse("public:help")).content.decode()
+    )
