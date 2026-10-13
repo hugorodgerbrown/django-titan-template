@@ -5,8 +5,8 @@ file is the part they share: the rules every one of those design systems
 follows. It comes from the
 [django-titan-template](https://github.com/hugorodgerbrown/django-titan-template);
 change it there, not here, so `copier update` keeps every app on the same
-rules. `tests/test_design.py` checks each rule it can, and fails the build
-when one is broken.
+rules. `tests/test_design.py` and `tests/design/` check each rule they can,
+and fail the build when one is broken.
 
 ## 1. There is a design system, and it is in the code
 
@@ -136,3 +136,38 @@ The site's name or icon at the top left links to the front page
 (`public:home`) on every page, public or signed in. Nothing else (the
 app's first screen, the account page) takes that place; the app's own
 navigation does that job.
+
+## 10. Mobile first
+
+A Titan app is used on a phone, in one hand, more than anywhere else.
+Design every screen for that first; a wider screen gets more room, never
+more features.
+
+- **The base styles are the phone's.** A wider screen is added with
+  `@media (min-width: …)`; nothing is taken away with `max-width`.
+- **Nothing hides behind hover.** A phone has none, so anything shown on
+  hover is also there, or one tap away, without it. Hover only tints.
+- **Fit the screen.** Every page has the viewport meta from
+  `_head.html`, and an edge fixed to the screen keeps clear of the notch
+  and the home bar with `env(safe-area-inset-*)`.
+- Tap targets are 44px (section 7), and the main action on a screen sits
+  where a thumb reaches it.
+
+## 11. Design for offline
+
+The signal drops in a lift, a tunnel or on a train. The app (everything
+under `/app/`) carries on without it.
+
+- **The shell opens offline.** Every script and stylesheet a page under
+  `/app/` loads is precached (`apps/pwa/conf.py: PRECACHE_STATIC`). One
+  that only works with the network anyway (passkeys) is listed in
+  `apps/design/conf.py: NEEDS_NETWORK` with the reason.
+- **Writes never fail for want of a signal.** They go through the outbox:
+  saved on the device, shown as waiting, sent when the network is back.
+- **Say what's offline.** The page frame has the offline banner. Something
+  that can't work offline says so where it is, rather than failing
+  silently or spinning.
+- **Nothing a page needs comes from another origin.** No third-party
+  fonts, scripts or stylesheets: they wouldn't be there offline, and the
+  CSP blocks them. Analytics are the one exception, and a page works
+  without them.
