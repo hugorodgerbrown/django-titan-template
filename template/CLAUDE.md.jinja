@@ -116,6 +116,30 @@ ends on the person's first real action. Measure it in fivebar with
 `Tour started`, `Tour ended`, `Tour finished` and that first action. Why:
 [docs/decisions/every-app-has-an-onboarding-tour.md](docs/decisions/every-app-has-an-onboarding-tour.md).
 
+## Linear
+
+Every Titan app has a Linear project, {{ project_name }}, in the Titan
+team (issue keys `RAS-`), and every change maps to an issue there: one
+issue per PR, one PR per issue. Why:
+[docs/decisions/every-change-starts-as-a-linear-issue.md](docs/decisions/every-change-starts-as-a-linear-issue.md).
+
+- If the project doesn't exist yet (a new app), create it in the Titan
+  team first, named after the app, then file the first issue in it.
+- The issue is the sign-off. Before writing code, Claude creates it in
+  the app's project with the scope: what changes, what doesn't, how
+  we'll know it's done, and the decision behind it. Work starts once the
+  person agrees the scope, not before.
+- If the scope changes during the work, say so on the issue before the
+  PR goes up, so the issue records what was built and why.
+- The PR title is `RAS-42: what it does` and its body starts
+  `Closes RAS-42`, so Linear links the two and closes the issue on merge.
+- Reversing an earlier decision is a new issue that links the old one
+  and says why it changed. Never rewrite the old issue: the history is
+  the point.
+- Dependabot's PRs are the one exception: they need no issue.
+- Without the Linear MCP server, say so and give the issue as Markdown
+  for the person to file; don't start unticketed work.
+
 ## Tests
 
 Three layers, top-down, stop at the first that can hold the assertion:
@@ -125,8 +149,9 @@ Coverage floor 90%. Full rules: [docs/testing.md](docs/testing.md).
 
 ## Before opening a PR
 
-Run `uv run tox` and fix every failure. Record a non-obvious architectural
-choice in `docs/decisions/`.
+Run `uv run tox` and fix every failure. Check the PR names its Linear
+issue (above). Record a non-obvious architectural choice in
+`docs/decisions/`.
 
 ## Invariants
 
