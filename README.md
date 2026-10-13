@@ -42,7 +42,7 @@ titan golive tally   # after the CNAME: the custom domain
 Plain `titan` asks what to do. Every command shows the plan and asks before
 changing anything.
 
-It reads its three keys from a 1Password item named `Titan`. Install,
+It reads its keys from a 1Password item named `Titan`. Install,
 keys, env groups and every command are in [titan/README.md](titan/README.md).
 
 ## Keep a project up to date

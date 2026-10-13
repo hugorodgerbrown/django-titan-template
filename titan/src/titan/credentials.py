@@ -1,4 +1,4 @@
-"""Where titan's three account-wide keys come from.
+"""Where titan's account-wide keys come from.
 
 In order: a 1Password item (``Titan`` by default, one field per key, read
 with the ``op`` CLI), then ``~/.config/titan/env`` (KEY=value lines), then
@@ -8,6 +8,10 @@ and titan must not pick those up by mistake.
 
 The non-secret TITAN_* overrides (domain, mail domain, GitHub owner,
 1Password item and vault) may come from the environment or the file.
+
+FIVEBAR_API_KEY is optional: it comes from 1Password or the file, and is
+never asked for. Without it, `golive` lists adding the fivebar site as a
+step to do by hand.
 """
 
 from __future__ import annotations
@@ -29,6 +33,10 @@ SECRET_KEYS = {
     "RENDER_API_KEY": "Render API key",
     "RESEND_API_KEY": "Resend full-access API key",
     "TITAN_DB_ADMIN_URL": "shared-db External Database URL",
+}
+# Read like the secrets above, but never asked for: titan works without them.
+OPTIONAL_SECRET_KEYS = {
+    "FIVEBAR_API_KEY": "fivebar API token that can add sites",
 }
 OPTION_KEYS = (
     "TITAN_DOMAIN",
@@ -60,6 +68,7 @@ class Settings:
     github_owner: str = "hugorodgerbrown"
     db_internal_host: str = ""
     render_workspace: str = ""
+    fivebar_api_key: str = ""
     sources: Mapping[str, str] = field(default_factory=dict)
 
 
@@ -100,7 +109,7 @@ def read_1password(item: str, vault: str = "", run: Runner = run_capture) -> dic
     for item_field in fields:
         label = str(item_field.get("label", ""))
         value = str(item_field.get("value") or "")
-        if label in SECRET_KEYS and value:
+        if (label in SECRET_KEYS or label in OPTIONAL_SECRET_KEYS) and value:
             values[label] = value
     return values
 
@@ -124,7 +133,7 @@ def load(
     item = options["TITAN_OP_ITEM"] or OP_ITEM
     for key, value in op(item, options["TITAN_OP_VAULT"]).items():
         values[key], sources[key] = value, f"1Password item {item!r}"
-    for key in SECRET_KEYS:
+    for key in (*SECRET_KEYS, *OPTIONAL_SECRET_KEYS):
         if not values.get(key) and file_values.get(key):
             values[key], sources[key] = file_values[key], str(path)
     for key, label in SECRET_KEYS.items():
@@ -145,5 +154,6 @@ def load(
         github_owner=options["TITAN_GITHUB_OWNER"] or Settings.github_owner,
         db_internal_host=options["TITAN_DB_INTERNAL_HOST"],
         render_workspace=options["TITAN_RENDER_WORKSPACE"],
+        fivebar_api_key=values.get("FIVEBAR_API_KEY", ""),
         sources=sources,
     )

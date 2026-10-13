@@ -8,8 +8,7 @@ Every Titan app needs to know how many people use it and which pages they
 open, without a cookie banner and without weakening a CSP that allows
 nothing but this origin. fivebar (https://fiveb.ar) counts visits with one
 async script tag and no cookies; Traintrackr already uses it. It has no
-package and no server code, and no API for adding a site: a site is added
-by hand at https://fiveb.ar/sites.
+package and no server code; its API can add a site.
 
 ## Decision
 
@@ -19,8 +18,9 @@ by hand at https://fiveb.ar/sites.
   from.
 - It is off unless `FIVEBAR_DOMAIN` is set. Locally, in CI and in tests
   nothing is drawn and the CSP gains nothing. titan sets it at go-live to
-  the app's domain, next to `SITE_URL`, and lists adding the site in
-  fivebar as a by-hand step.
+  the app's domain, next to `SITE_URL`, and adds the site to fivebar
+  through its API (by hand at https://fiveb.ar/sites when titan has no
+  `FIVEBAR_API_KEY`).
 - While it is on, `https://fiveb.ar` is added to `script-src` and
   `connect-src` only.
 - A page whose route takes values (an emailed sign-in link's token, a

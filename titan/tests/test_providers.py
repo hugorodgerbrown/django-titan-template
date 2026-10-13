@@ -9,7 +9,7 @@ from typing import Any
 import pytest
 
 from titan import TitanError
-from titan.providers import GitHub, Render, Resend
+from titan.providers import Fivebar, GitHub, Render, Resend
 
 TALLY = {"type": "web_service", "repo": "https://github.com/hugorodgerbrown/tally"}
 REPO = "https://github.com/hugorodgerbrown/tally"
@@ -332,3 +332,43 @@ def test_render_looks_for_services_in_the_chosen_workspace_only() -> None:
     assert found is not None
     assert found["id"] == "b"
     assert "ownerId=tea-2" in urls[0]
+
+
+def test_fivebar_finds_and_adds_a_site() -> None:
+    """The site list is read for the domain; adding one is a POST of the domain."""
+    sent: list[tuple[str, str, Any]] = []
+
+    def call(method: str, url: str, token: str, body: Any = None) -> Any:
+        sent.append((method, url, body))
+        assert token == "fivebar_tok"
+        if method == "GET":
+            return {"sites": [{"domain": "traintrackr.live"}], "count": 1}
+        return {"site": {"domain": body["domain"]}, "tag": "<script ...>"}
+
+    fivebar = Fivebar("fivebar_tok", call)
+    assert fivebar.has_site("traintrackr.live")
+    assert not fivebar.has_site("tally.ultraniche.ai")
+    fivebar.add_site("tally.ultraniche.ai")
+    assert sent[-1] == (
+        "POST",
+        "https://fiveb.ar/api/sites",
+        {"domain": "tally.ultraniche.ai"},
+    )
+
+
+@pytest.mark.parametrize(
+    ("failure", "message"),
+    [
+        ('409 {"error": "domain taken"}', "a fivebar site on another account"),
+        ('403 {"error": "token cannot add sites"}', "cannot add sites: allow it"),
+        ('502 {"error": "site could not be added"}', "502"),
+    ],
+)
+def test_fivebar_says_why_a_site_was_not_added(failure: str, message: str) -> None:
+    """A taken domain or a read-only token is named; anything else passes through."""
+
+    def call(method: str, url: str, token: str, body: Any = None) -> Any:
+        raise TitanError(f"{method} {url} failed: {failure}")
+
+    with pytest.raises(TitanError, match=message):
+        Fivebar("fivebar_tok", call).add_site("tally.ultraniche.ai")

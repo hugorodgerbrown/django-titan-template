@@ -1,4 +1,4 @@
-"""The few calls titan makes to Render, Resend, shared-db and GitHub.
+"""The few calls titan makes to Render, Resend, fivebar, shared-db and GitHub.
 
 Each client takes its transport as an argument (``call`` for the HTTP APIs),
 so the tests swap in fakes and nothing here is reached in a test run.
@@ -21,6 +21,7 @@ from titan import TitanError, __version__
 
 RENDER_API = "https://api.render.com/v1"
 RESEND_API = "https://api.resend.com"
+FIVEBAR_API = "https://fiveb.ar/api"
 # Render deploy states that end a deploy; only "live" means it worked.
 DEPLOY_DONE = {
     "live",
@@ -248,6 +249,41 @@ class Resend:
         """A key that can only send, and only from one domain. Returns the token."""
         body = {"name": name[:50], "permission": "sending_access", "domain_id": domain_id}
         return str(self.call("POST", f"{RESEND_API}/api-keys", self.token, body)["token"])
+
+
+# ---------------------------------------------------------------- fivebar
+
+
+class Fivebar:
+    """The two fivebar API calls titan needs: is the site there, and add it."""
+
+    def __init__(self, token: str, call: Callable[..., Any] = request_json) -> None:
+        """Keep the token (one made able to add sites); `call` is swappable for tests."""
+        self.token = token
+        self.call = call
+
+    def has_site(self, domain: str) -> bool:
+        """Whether the account holds the site.
+
+        Lists the sites in no group, which is where an added site goes; one
+        moved into a group since reads as missing, and adding it again is
+        a no-op.
+        """
+        sites = self.call("GET", f"{FIVEBAR_API}/sites", self.token)["sites"]
+        return any(site.get("domain") == domain for site in sites)
+
+    def add_site(self, domain: str) -> None:
+        """Add the site; one already on this account is left as it is."""
+        try:
+            self.call("POST", f"{FIVEBAR_API}/sites", self.token, {"domain": domain})
+        except TitanError as exc:
+            if " 409 " in str(exc):
+                raise TitanError(f"{domain} is a fivebar site on another account.") from exc
+            if " 403 " in str(exc) and "cannot add sites" in str(exc):
+                raise TitanError(
+                    "FIVEBAR_API_KEY cannot add sites: allow it in fivebar's Settings."
+                ) from exc
+            raise
 
 
 # ---------------------------------------------------------------- Postgres

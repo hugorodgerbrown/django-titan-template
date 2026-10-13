@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
-from conftest import FakeDb, FakeGitHub, FakeRender, RecordingView
+from conftest import FakeDb, FakeFivebar, FakeGitHub, FakeRender, RecordingView
 
 from titan import TitanError
 from titan.plans import plan_deploy, plan_golive, plan_new
@@ -306,7 +306,9 @@ def test_golive_dry_run_gives_the_cname(make_ctx: Any) -> None:
     run(plan, commit=False)
     assert "CNAME  tally  →  tally-s2nb.onrender.com" in plan.steps[0].title
     assert plan.steps[1].title == "In fivebar: add the site tally.ultraniche.ai"
-    assert plan.steps[1].detail == "by hand, at https://fiveb.ar/sites"
+    assert plan.steps[1].detail == (
+        "by hand, at https://fiveb.ar/sites (or give titan a FIVEBAR_API_KEY)"
+    )
     assert render.writes == []
 
 
@@ -337,6 +339,29 @@ def test_golive_on_a_live_app_only_turns_on_the_counts(make_ctx: Any) -> None:
     run(plan)
     assert render.group_values("tally")["FIVEBAR_DOMAIN"] == "tally.ultraniche.ai"
     assert render.deploys == ["srv-web", "crn-cron"]
+
+
+def test_golive_adds_the_fivebar_site_with_a_token(make_ctx: Any) -> None:
+    """With a token, golive adds the site itself, before the deploy that turns counting on."""
+    render = FakeRender()
+    render.add_custom_domain("srv-web", "tally.ultraniche.ai")
+    fivebar = FakeFivebar()
+    plan = plan_golive(make_ctx(render=render, fivebar=fivebar))
+    assert plan.steps[1].title == "Add the site tally.ultraniche.ai to fivebar"
+    run(plan)
+    assert fivebar.added == ["tally.ultraniche.ai"]
+
+
+def test_golive_leaves_an_existing_fivebar_site_alone(make_ctx: Any) -> None:
+    """A site already on the account is a done step."""
+    render = FakeRender()
+    render.add_custom_domain("srv-web", "tally.ultraniche.ai")
+    fivebar = FakeFivebar({"tally.ultraniche.ai"})
+    plan = plan_golive(make_ctx(render=render, fivebar=fivebar))
+    assert plan.steps[1].title == "fivebar site tally.ultraniche.ai"
+    assert plan.steps[1].run is None
+    run(plan)
+    assert fivebar.added == []
 
 
 def test_golive_adds_the_domain_to_hosts_pinned_on_the_service(make_ctx: Any) -> None:

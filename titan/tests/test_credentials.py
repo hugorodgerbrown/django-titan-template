@@ -78,6 +78,16 @@ def test_missing_keys_are_asked_for_not_read_from_the_environment(tmp_path: Path
     )
 
 
+def test_the_fivebar_token_is_optional_and_never_asked_for(tmp_path: Path) -> None:
+    """From 1Password or the file when there; otherwise empty, with no prompt."""
+    path = tmp_path / "env"
+    path.write_text("FIVEBAR_API_KEY=fivebar_file\n")
+    assert load(never_asked, {}, path, lambda item, vault: KEYS).fivebar_api_key == ("fivebar_file")
+    with_op = load(never_asked, {}, path, lambda item, vault: {**KEYS, "FIVEBAR_API_KEY": "fb_op"})
+    assert with_op.fivebar_api_key == "fb_op"
+    assert load(never_asked, {}, tmp_path / "absent", lambda i, v: KEYS).fivebar_api_key == ""
+
+
 def test_a_blank_answer_stops_the_run(tmp_path: Path) -> None:
     """An empty answer is an error naming the key and where to put it."""
     with pytest.raises(TitanError, match=r"No RENDER_API_KEY given\..*1Password item 'Titan'"):
