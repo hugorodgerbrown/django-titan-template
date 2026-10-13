@@ -28,6 +28,7 @@ with Face ID, a fingerprint or a device PIN from then on.
 | `apps/accounts/tasks.py` | `send_sign_in_email`, enqueued by the view (`django.tasks`) |
 | `apps/accounts/models.py` | `SignInRequest`, `Passkey` |
 | `static/js/passkeys.js`, `webauthn_json.js` | The browser side of both ceremonies |
+| `static/js/code_input.js` | The code as six digit boxes; a pasted or autofilled code fills them all |
 | `apps/core/ratelimit.py` | Cache-backed limits on emails, codes and passkey challenges |
 
 ## Signing in by email
@@ -47,6 +48,11 @@ with Face ID, a fingerprint or a device PIN from then on.
   request's uuid, so a code is useless in another browser, and five wrong
   codes (`SIGN_IN_MAX_CODE_ATTEMPTS`) end it. That is what makes six digits
   enough.
+- **Six boxes, one field.** `code_input.js` shows the code as six digit
+  boxes: typing moves on, Backspace goes back, and pasting the code (or
+  iPhone's one-time-code autofill) into any box fills all six and submits.
+  Underneath it is still the one `code` field, which is all a browser
+  without JavaScript sees.
 - **The link page needs a click.** Mail scanners open links to check them;
   a link that signed in on GET would be used up before the person saw it.
 - **No enumeration.** The form answers the same whether or not the address

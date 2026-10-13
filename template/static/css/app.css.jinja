@@ -140,6 +140,17 @@ input[type="text"], input[type="email"], input[type="password"], textarea {
 .button--secondary { background: transparent; color: var(--brand); box-shadow: inset 0 0 0 2px var(--brand); }
 .button:disabled { opacity: 0.6; cursor: progress; }
 .input--code { max-width: 12rem; font-size: 1.5rem; letter-spacing: 0.3em; font-variant-numeric: tabular-nums; }
+/* The sign-in code as six boxes, one digit each (static/js/code_input.js) */
+.code-boxes { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; max-width: 24rem; }
+input.code-box {
+  height: 56px;
+  padding: 0;
+  font-size: 1.5rem;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  caret-color: var(--brand);
+}
+input.code-box:focus { border-color: var(--brand); outline: 2px solid var(--brand); outline-offset: -1px; }
 .errorlist { color: var(--error); padding-left: 1.2em; margin: 4px 0 0; }
 .form-error { color: var(--error); margin: 0; }
 
