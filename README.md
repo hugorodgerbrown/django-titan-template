@@ -16,7 +16,7 @@ cd my-project && uv run tox
 ```
 
 `--trust` lets the template run its post-generation tasks: draw placeholder
-icons, write `uv.lock` and `package-lock.json`, and `git init`.
+icons and a share card, write `uv.lock` and `package-lock.json`, and `git init`.
 
 Questions: the product name, slug, description, author, copyright holder
 (for the site footer), brand colour,

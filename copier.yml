@@ -83,6 +83,8 @@ render_region:
 _tasks:
   - command: [uv, run, --quiet, --no-project, --with, pillow, python, bin/make-icons, "{{ project_name }}", "{{ theme_colour }}"]
     when: "{{ _copier_operation == 'copy' }}"
+  # Never overwrites, so it runs on update too: an app made before the share card gets one.
+  - command: [uv, run, --quiet, --no-project, --with, pillow, python, bin/make-share-card, "{{ project_name }}", "{{ theme_colour }}", "{{ description }}"]
   - command: uv lock --quiet
   # npm installs the JS test tooling only; the app runs without it.
   - command: >-
