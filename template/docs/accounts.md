@@ -7,7 +7,7 @@ with Face ID, a fingerprint or a device PIN from then on.
 ```
                  ┌──────────── /signin/ ─────────────┐
                  │  email ──▶ SignInRequest (hashes)  │──▶ email: link + 6-digit code
-                 │  passkey button / autofill         │
+                 │  passkey button                    │
                  └──────┬─────────────────────┬──────┘
           link, any browser                code, this browser only
    /signin/link/<token>/ ── Continue (POST)    /signin/code/ ── POST code
@@ -74,9 +74,11 @@ with Face ID, a fingerprint or a device PIN from then on.
   device it was made on ("Passkey on iPhone").
 - Discoverable credentials with user verification required: a passkey alone
   signs someone in, so it has to be the person, not just the device.
-- Sign-in needs no email: the browser offers every passkey it holds for the
-  site, from the button or from the email field's autofill (conditional
-  mediation).
+- Sign-in needs no email: pressing "Sign in with a passkey" makes the
+  browser offer every passkey it holds for the site. Nothing asks before
+  the button is pressed: no autofill (conditional mediation) request on
+  page load, which some browsers and password managers show as a prompt
+  nobody asked for.
 - A passkey deleted here but still on a device answers 404 with its id;
   the page asks the browser to forget it (`signalUnknownCredential`).
 - `WEBAUTHN_RP_ID` is the site's host name and `WEBAUTHN_ORIGINS` its
