@@ -90,7 +90,16 @@ a { color: var(--brand); }
   background: var(--brand);
   color: var(--brand-text);
 }
-.app-header__name { color: inherit; font-weight: 600; text-decoration: none; margin-right: auto; }
+.app-header__name {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-right: auto;
+  color: inherit;
+  font-weight: 600;
+  text-decoration: none;
+}
+.app-header__icon { border-radius: var(--radius-icon); }
 .app-header form { margin: 0; }
 .app-header .button--quiet { color: inherit; }
 .app-header__link { color: inherit; font-weight: 600; text-decoration: none; }
@@ -118,13 +127,97 @@ a { color: var(--brand); }
 .site-links li + li { border-top: 1px solid var(--border); }
 .site-links a { min-height: 44px; display: flex; align-items: center; color: var(--text-1); }
 
+/* The front page (DESIGN.md, "The front page"), top to bottom. */
+
+.eyebrow {
+  margin: 0;
+  color: var(--text-2);
+  font-size: var(--type-sm);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+/* An eyebrow sits tight on what it labels, and opens a new part of a card with room. */
+.stack > .eyebrow + * { margin-top: var(--space-xs); }
+.stack > * + .eyebrow { margin-top: var(--space-2xl); }
 .hero { padding: var(--space-3xl) 0 var(--space-lg); }
 .hero h1 { font-size: var(--type-3xl); }
 .hero__lead { font-size: var(--type-lg); color: var(--text-2); margin: 0; }
+.hero__note { margin-top: var(--space-sm); color: var(--text-2); font-size: var(--type-sm); text-align: center; }
+
+/* The product, live: the app's own component with demo data, in a frame. */
+.showcase { margin: 0 0 var(--space-lg); }
+.showcase__screen {
+  overflow: hidden;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 0 var(--space-lg);
+}
+.showcase__bar {
+  margin: 0 calc(-1 * var(--space-lg));
+  padding: var(--space-sm) var(--space-lg);
+  background: var(--brand);
+  color: var(--brand-text);
+  font-weight: 600;
+}
+.showcase__caption { margin-top: var(--space-sm); color: var(--text-2); font-size: var(--type-sm); }
+
+/* How it works: three tiles, one under another on a phone. */
+.tiles { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-md); }
+.tile {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: var(--space-lg);
+}
+.tile__icon { width: 24px; height: 24px; color: var(--brand); }
+.tile__title { margin: var(--space-xs) 0 0; font-weight: 600; }
+.tile .meta { margin: var(--space-2xs) 0 0; }
+@media (min-width: 40rem) {
+  .tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+/* A made-up exchange with an AI chat, over the connector. */
+.chat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  border-radius: var(--radius-control);
+  background: var(--bg);
+  font-size: var(--type-sm);
+}
+.chat__you, .chat__reply { max-width: 85%; margin: 0; padding: var(--space-sm) var(--space-md); border-radius: var(--radius-card); }
+.chat__you { align-self: flex-end; background: var(--text-1); color: var(--card); }
+.chat__reply { background: var(--card); border: 1px solid var(--border); }
+
+/* Things to ask: quoted, not chips, since nothing here is tapped. */
+.asks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-xs); }
+.asks li { padding-left: var(--space-md); border-left: 2px solid var(--brand); }
+.asks li::before { content: "\201C"; }
+.asks li::after { content: "\201D"; }
+
+/* An address to copy, and its button (js/copy.js shows it). */
+.copy-field { display: flex; align-items: center; gap: var(--space-sm); }
+.copy-field__value {
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-control);
+  background: var(--bg);
+  font-size: var(--type-sm);
+  overflow-wrap: anywhere;
+}
+
+/* The closing action: the promise again, and the same way in. */
+.closing { padding: var(--space-2xl) 0; text-align: center; }
+.closing h2 { font-size: var(--type-2xl); }
 
 .prose { max-width: 40rem; }
 .prose h2 { margin-top: var(--space-2xl); }
-.prose p, .prose ul { margin: var(--space-sm) 0 0; }
+.prose h3 { margin: var(--space-lg) 0 0; font-size: var(--type-base); }
+.prose p, .prose ul, .prose ol { margin: var(--space-sm) 0 0; }
 
 .notice {
   margin: 0 0 var(--space-lg);
@@ -169,6 +262,7 @@ input[type="text"], input[type="email"], input[type="password"], textarea {
   cursor: pointer;
 }
 .button--quiet { background: transparent; color: var(--brand); padding-inline: var(--space-sm); }
+.button--block { display: flex; align-items: center; justify-content: center; width: 100%; }
 .button--secondary { background: transparent; color: var(--brand); box-shadow: inset 0 0 0 2px var(--brand); }
 .button:disabled { opacity: 0.6; cursor: progress; }
 .input--code { max-width: 12rem; font-size: var(--type-2xl); letter-spacing: 0.3em; font-variant-numeric: tabular-nums; }

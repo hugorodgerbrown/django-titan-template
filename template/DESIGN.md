@@ -171,3 +171,43 @@ under `/app/`) carries on without it.
   fonts, scripts or stylesheets: they wouldn't be there offline, and the
   CSP blocks them. Analytics are the one exception, and a page works
   without them.
+
+## 12. The front page
+
+Every Titan app's front page (`public/home.html`) has the same anatomy, so
+a visitor who has seen one knows where to look on the next. Gondola's is
+the model. From top to bottom:
+
+| # | Section | | What it holds |
+| --- | --- | --- | --- |
+| 1 | Header | required | The icon and name, linking home (§9), and one link on the right: **Sign in**, or **Open the app** when signed in. No avatar and no menu: the account page is inside the app, and the other pages are in the footer. |
+| 2 | Proposition | required | An eyebrow if it helps, then the H1, which is the promise, not the app's name (the header already says that). One sentence of lede, then **one** primary action named for the first job ("Start a group", not "Create an account"). Under it, a note that removes the doubt ("Free. Sign in with your email, no password."). |
+| 3 | The product, live | required | The app's own component, drawn by the real CSS with demo data, and a one-line caption saying how to read it. |
+| 4 | How it works | optional | Three tiles, each an icon, a verb and one line. |
+| 5 | From your AI chat | required with MCP | An eyebrow and H2, then a short sample chat (ask, answer, act) and "Try asking" with three or four prompts. Then the `/mcp` address with a copy button, a link to the steps on the help page, and what stays private, said plainly. |
+| 6 | Facts | optional | Three true numbers, each removing a doubt ("0 passwords"). |
+| 7 | Closing action | required | The promise in other words, and the same primary action again, for whoever scrolled to the end. |
+| 8 | Footer | required | §8. Any data credit a source asks for sits above the copyright. |
+
+The rules behind it:
+
+- **One way in.** Signing in creates the account, so there is no separate
+  sign-up button. The primary action goes to sign in with `?next=` set to
+  the first job's page; "Sign in" lives in the header only.
+- **Signed in, the page changes its offer, not its shape.** The header link
+  and both primary actions become **Open the app**.
+- **Show the product, never a picture of it.** Demo data, not live data: a
+  live feed can be empty (no trains at 3am) or wrong, and a screenshot
+  goes stale, blurs on a phone and doesn't work in dark mode.
+- **The connector steps live on the help page**, in the "Use it from
+  Claude or ChatGPT" section (`#use-with-ai`) that every Titan app shares.
+  The front page links there and to nothing else for setup; the footer
+  links there as "Use with Claude".
+- **Every public page unfurls.** `public_base.html` sets the Open Graph and
+  Twitter tags, but not `og:url`: the chat already has the link, and a
+  sign-in link's address is its token. A page names its own `share_title` and `share_description`
+  blocks; the front page uses the promise and the lede. The share card,
+  `static/img/share-card.png`, is 1200×630 and shows the proposition and
+  the product side by side, so a link pasted in a chat looks like the
+  page it opens. `bin/make-icons` draws a placeholder; replace it before
+  launch.
