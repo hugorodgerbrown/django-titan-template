@@ -30,6 +30,69 @@ flowchart LR
 
 ---
 
+## The app sheet: fill this in first
+
+Every value a new app needs, in one place. Fill in the right-hand column
+in the Linear project's description before phase 1; copier, titan, the
+pages and both directory forms all draw from it. Tally is the worked
+example.
+
+**Identity**
+
+| Value | Tally | Goes into | Set by |
+| --- | --- | --- | --- |
+| Name | Tally | header, manifest, emails, consent page, directory listings | copier `project_name` |
+| Slug | `tally` | repo, Render services, database and role, subdomain, Resend key, cache prefix | copier `project_slug` |
+| One-line description | Interval workouts, run hands-free on a phone | manifest, meta description, placeholder share card | copier `description` |
+| Promise (the H1) and lede | Timed and tallied. Say hi to your new AI trainer. | front page, share card | `public/home.html` |
+| Brand colour | `#…` | icons, `theme-color`, launch screen, share card | copier `theme_colour` |
+| Icon | `static/icons/icon.svg` | home screen, favicon, **512×512 PNG for the directories** | `bin/make-icons` draws a placeholder; replace it |
+| Share card | `static/img/share.png`, 1200×630 | link unfurls | `bin/make-share-card` placeholder; replace it |
+| Copyright holder | Ultraniche | footer © line | copier `copyright_holder` |
+| Linear project and key | Tally, `RAS-` | issues, PR titles | Phase 0 |
+
+**Addresses**
+
+| Value | Pattern | Goes into | Set by |
+| --- | --- | --- | --- |
+| Site URL | `https://<slug>.ultraniche.ai` | `SITE_URL`, passkey RP ID, directory "website" | `titan golive` |
+| MCP URL | `https://<slug>.ultraniche.ai/mcp` | front page, Help, connector set-up, directory "server URL" | derived from `SITE_URL` |
+| Help, Terms, Privacy URLs | `/help/`, `/terms/`, `/privacy/` | footer, directory forms | the template |
+| Sender | `<Name> <<slug>@mail.ultraniche.ai>` | `DEFAULT_FROM_EMAIL` (send-only domain) | `titan deploy` |
+| **Contact / support email** | an address that **receives** mail | Help's "Contact us", Privacy's "Contact", Terms, directory "support contact" | by hand: the template ships `support@example.com` and *"Placeholder: add a contact address"* |
+| Reviewer sign-in | `reviewer@<slug>.ultraniche.ai` + its code | directory forms only | admin, `ReviewerAccount` |
+| Developer / publisher | Ultraniche | directory forms | by hand |
+
+`mail.ultraniche.ai` only sends, so the contact address needs a mailbox
+or forward elsewhere. Traintrackr uses `support@traintrackr.live`; Tally
+and Gondola have no contact address on any page yet.
+
+**Decisions**
+
+| Decision | Default | Where |
+| --- | --- | --- |
+| Serve `/mcp`? | yes | copier `include_mcp` |
+| Who may connect | staff only; widen to active accounts for launch | `apps/mcp/policy.py`, in a PR that says so |
+| Keep email addresses? | no: a key and a masked address | `ACCOUNTS_KEEP_EMAIL` in settings; decide before the first user |
+| Scheduled jobs | the daily purge | `render.yaml` (leave the cron out if there are none) |
+| Render region | frankfurt | copier `render_region` |
+| What the tools withhold | nothing | app's CLAUDE.md, tool descriptions, privacy notice |
+
+**For the directory listings** (gather once, used by both forms)
+
+| Value | Source |
+| --- | --- |
+| Short description | the one-line description |
+| Long description | the front page's lede and "how it works" tiles |
+| Three to five example prompts | the front page's "Try asking" list |
+| Screenshots | the live product (the front page's demo, the board in Claude) |
+| Category | pick per directory |
+| Privacy, terms, support URLs and contact email | the addresses above |
+| Test account | the reviewer sign-in above |
+| ChatGPT domain token | `OPENAI_APPS_CHALLENGE` on the app's group |
+
+The two forms change; check each field against the form on the day.
+
 ## Before the first app: one-off set-up
 
 Already done for the apps so far; check it once on a new machine.
@@ -42,6 +105,7 @@ Already done for the apps so far; check it once on a new machine.
 
 ## 0 · Plan
 
+- [ ] Fill in [the app sheet](#the-app-sheet-fill-this-in-first) in the project's description
 - [ ] Create the app's **Linear project** in the Titan team (`RAS-`), named after the app ([why](template/docs/decisions/every-change-starts-as-a-linear-issue.md))
 - [ ] File the first issue with the scope: what changes, what doesn't, how we'll know it's done, the decision behind it
 - [ ] Agree the scope on the issue before any code. One issue per PR; Dependabot is the only exception
@@ -73,6 +137,7 @@ ones that bit us:
 - [ ] **Onboarding tour:** write `docs/onboarding-tour.md` and agree it before building; runs on a private demo copy, measured in fivebar
 - [ ] **Links in templates use `{% url %}` or `format_html`**, never `href="{{ var }}"`: semgrep's `var-in-href` fails `tox -e sast`
 - [ ] **New offline static files** go in `apps/pwa/conf.py: PRECACHE_STATIC`; watch the byte budget
+- [ ] **Replace every placeholder** on Help, Terms and Privacy: the contact address (`support@example.com`, *"Placeholder: add a contact address"*) and the *Placeholder* notices. Terms reviewed before launch
 - [ ] **Docs move with the code in the same PR.** Privacy, terms, help, README and `docs/accounts.md` say what this branch stores and sends (Traintrackr's terms once said the address was never stored while the code stored it)
 - [ ] **MCP tool descriptions** say what is withheld and why, so the assistant passes it on
 - [ ] `uv run tox` green before every PR; `PR title RAS-NN: …`, body starts `Closes RAS-NN`
@@ -135,6 +200,7 @@ What both reviews asked for, and where it lives in the template:
 | --- | --- | --- |
 | A test account with no email, SMS or MFA | `ReviewerAccount` in the admin: an address and a fixed six-digit code ([docs/accounts.md](template/docs/accounts.md#reviewer-accounts)) | Add `reviewer@<slug>.ultraniche.ai`, read the code, give both to the form |
 | Domain ownership for ChatGPT's directory | `/.well-known/openai-apps-challenge` serves `OPENAI_APPS_CHALLENGE` | Set the token on the app's group, deploy, then verify |
+| A support contact | Help's "Contact us" and Privacy's "Contact" (placeholders) | A real address that receives mail |
 | Privacy policy, terms, help | `/privacy/`, `/terms/`, `/help/`, and the `privacy_policy`, `terms_of_service`, `help` MCP tools | Check they say what *this* app stores, uses and sends |
 | An icon | `static/icons/` | Upload a 512×512 PNG |
 | Clear tool behaviour | the tools' descriptions | Read each one as a reviewer would; say what is withheld |
@@ -180,6 +246,7 @@ What both reviews asked for, and where it lives in the template:
 
 Carry these by hand until they land, then delete the line.
 
+- [ ] A copier question (or `apps/public/conf.py` setting) for the **contact email**, used by Help, Privacy and Terms, instead of `support@example.com`; and give Tally and Gondola one
 - [ ] Pin mcp-auth **v0.1.5** and point `MCP_AUTH["ACCOUNT_NAME"]` at the masked address, so the consent page doesn't show the key ([RAS-49](https://linear.app/hugorodgerbrown/issue/RAS-49))
 - [ ] gunicorn `--access-logformat` without the query string, as Traintrackr's `render.yaml` has
 - [ ] The "docs move with the code in the same PR" rule in the template's CLAUDE.md (only Traintrackr has it)
