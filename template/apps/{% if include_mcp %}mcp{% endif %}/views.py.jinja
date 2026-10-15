@@ -7,13 +7,17 @@ Tools may name a ui:// resource (apps/mcp/resources.py) that the client
 renders with their result: an MCP App.
 Authentication is mcp_auth's ``@mcp_endpoint``: a bearer token bound to
 this URL, or a 401 that starts OAuth discovery.
+
+The OpenAI apps challenge lives here too: ChatGPT's app directory checks
+the domain before it lists the MCP server.
 """
 
 import json
 import logging
 from typing import Any
 
-from django.http import HttpRequest, HttpResponse, JsonResponse
+from django.conf import settings
+from django.http import Http404, HttpRequest, HttpResponse, JsonResponse
 from mcp_auth.resource import mcp_endpoint
 
 from apps.mcp.resources import MIME_TYPE, RESOURCES, ResourceNotFound, read_resource
@@ -70,6 +74,17 @@ def mcp(request: HttpRequest) -> HttpResponse:
     except RpcError as exc:
         return _error_response(msg_id, exc.code, exc.message)
     return JsonResponse({"jsonrpc": "2.0", "id": msg_id, "result": result})
+
+
+def openai_apps_challenge(request: HttpRequest) -> HttpResponse:
+    """The token OpenAI's platform issued to prove the domain, as bare text.
+
+    404 until OPENAI_APPS_CHALLENGE is set, so an app not in ChatGPT's
+    directory answers nothing at the address.
+    """
+    if not settings.OPENAI_APPS_CHALLENGE:
+        raise Http404
+    return HttpResponse(settings.OPENAI_APPS_CHALLENGE, content_type="text/plain; charset=utf-8")
 
 
 def _error_response(msg_id: Any, code: int, message: str) -> JsonResponse:
