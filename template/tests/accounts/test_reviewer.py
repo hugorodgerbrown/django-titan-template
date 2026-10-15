@@ -121,3 +121,21 @@ def test_deleting_ends_sign_ins_it_started(client: Client) -> None:
     assert not ReviewerAccount.objects.exists()
     for request, code in requests:
         assert sign_in.redeem_code(str(request.uuid), code) is None
+
+
+def test_changing_the_address_ends_the_old_ones_sign_ins() -> None:
+    """The old address stops being a reviewer address at once, pending sign-ins included."""
+    account = ReviewerAccountFactory.create(email="old@example.com")
+    request, _, _ = sign_in.issue("old@example.com")
+    account.email = "new@example.com"
+    account.save()
+    assert sign_in.redeem_code(str(request.uuid), account.code) is None
+
+
+def test_a_save_that_leaves_the_address_alone_ends_nothing() -> None:
+    """Only a saved change of address ends sign-ins, not one left out of update_fields."""
+    account = ReviewerAccountFactory.create(email="old@example.com")
+    request, _, _ = sign_in.issue("old@example.com")
+    account.email = "new@example.com"
+    account.save(update_fields=["updated_at"])
+    assert sign_in.redeem_code(str(request.uuid), account.code) == request
