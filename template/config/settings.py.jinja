@@ -13,7 +13,12 @@ import dj_database_url
 from decouple import Csv, config
 from django.utils.csp import CSP
 {%- if include_mcp %}
-from mcp_auth.conf import oauth2_settings
+from mcp_auth.conf import (
+    CHATGPT_REDIRECT_URI_PATTERNS,
+    DEFAULT_CONSENT_FORM_ACTION,
+    DEFAULT_REDIRECT_URI_PATTERNS,
+    oauth2_settings,
+)
 {%- endif %}
 
 from apps.core import analytics
@@ -259,14 +264,24 @@ LOGGING = {
 }
 {%- if include_mcp %}
 
-# OAuth 2.1 for the MCP endpoint, so Claude can add this project as a
-# connector. The shared Titan preset: PKCE, rotating refresh tokens, DCR and
-# CIMD, held to Claude's callbacks and loopback.
+# OAuth 2.1 for the MCP endpoint, so Claude and ChatGPT can add this project
+# as a connector (the help page gives the steps for both). The shared Titan
+# preset: PKCE, rotating refresh tokens, DCR and CIMD (ChatGPT's signed with
+# its own key), held to the callbacks below.
 OAUTH2_PROVIDER = oauth2_settings(
     resource_name=pwa_conf.APP_NAME,
     scope_description="Read and add your notes",
 )
-MCP_AUTH = {"CAN_CONNECT": "{{ mcp_can_connect }}"}
+MCP_AUTH = {
+    "CAN_CONNECT": "{{ mcp_can_connect }}",
+    # ChatGPT's callbacks as well as Claude's and loopback.
+    "REDIRECT_URI_PATTERNS": DEFAULT_REDIRECT_URI_PATTERNS + CHATGPT_REDIRECT_URI_PATTERNS,
+    "CONSENT_FORM_ACTION": [
+        *DEFAULT_CONSENT_FORM_ACTION,
+        "https://chatgpt.com",
+        "https://platform.openai.com",
+    ],
+}
 {%- endif %}
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
