@@ -33,11 +33,14 @@ def test_a_signed_in_page_is_not_stored(db: None) -> None:
     response = _respond(UserFactory(), "/oauth/authorize/")
     assert "no-store" in response["Cache-Control"]
     assert "private" in response["Cache-Control"]
+    assert not response.has_header("Offline-Copy")
 
 
-def test_the_apps_offline_pages_stay_storable(db: None) -> None:
-    """The service worker refuses no-store, so pages it keeps offline are left alone."""
-    assert not _respond(UserFactory(), f"{conf.SCOPE}account/").has_header("Cache-Control")
+def test_the_apps_offline_pages_are_not_stored_but_may_be_kept_offline(db: None) -> None:
+    """The browser mustn't store an app page; the service worker may keep its own copy."""
+    response = _respond(UserFactory(), f"{conf.SCOPE}account/")
+    assert "no-store" in response["Cache-Control"]
+    assert response["Offline-Copy"] == "allowed"
 
 
 def test_a_page_the_worker_never_caches_is_not_stored(
@@ -45,7 +48,9 @@ def test_a_page_the_worker_never_caches_is_not_stored(
 ) -> None:
     """A NEVER_CACHE path inside the app gets no-store like any other signed-in page."""
     monkeypatch.setattr(conf, "NEVER_CACHE", [f"{conf.SCOPE}secret/"])
-    assert "no-store" in _respond(UserFactory(), f"{conf.SCOPE}secret/")["Cache-Control"]
+    response = _respond(UserFactory(), f"{conf.SCOPE}secret/")
+    assert "no-store" in response["Cache-Control"]
+    assert not response.has_header("Offline-Copy")
 
 
 def test_a_view_that_chose_its_caching_keeps_it(db: None) -> None:

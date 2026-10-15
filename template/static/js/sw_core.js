@@ -43,9 +43,15 @@
     return 'page';
   }
 
-  /** True when a response can be stored and served later. */
+  /**
+   * True when a response can be stored and served later. Signed-in pages are
+   * no-store so the browser's own cache never holds them; the server marks the
+   * ones this worker may still keep (apps/core/private_pages.py), since
+   * pwa.js deletes this cache before signing out.
+   */
   function isStorable(response) {
     if (!response || !response.ok || response.redirected || response.type !== 'basic') return false;
+    if (response.headers.get('Offline-Copy') === 'allowed') return true;
     const cacheControl = response.headers.get('Cache-Control') || '';
     return !/no-store/i.test(cacheControl);
   }
