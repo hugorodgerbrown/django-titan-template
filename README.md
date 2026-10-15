@@ -26,6 +26,10 @@ and who may connect), and the Render region.
 
 ## Provision and deploy a new app
 
+Starting a new app? Work through [NEW_PROJECT_CHECKLIST.md](NEW_PROJECT_CHECKLIST.md):
+every phase from the Linear issue to the app directories, and the snags
+the first three apps hit.
+
 [titan](titan/) sets up everything around a new app and takes it live:
 the GitHub repo, a role and database on shared-db, a sending-only Resend
 key, the shared and per-app env groups, the Render services and the
