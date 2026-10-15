@@ -1,0 +1,4 @@
+{% extends "mcp_auth/authorize.html" %}
+{# mcp_auth's shared consent page, in this app's words: override only its blocks. #}
+{% block title %}Connect {{ application.name|default:"an app" }} · {{ pwa.name }}{% endblock %}
+{% block heading %}Connect {{ application.name|default:"this app" }} to {{ pwa.name }}?{% endblock %}

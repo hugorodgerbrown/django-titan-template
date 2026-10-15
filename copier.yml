@@ -63,7 +63,7 @@ include_mcp:
 # and replayed, and projects stayed on the release they were made with.
 mcp_auth_version:
   type: str
-  default: "v0.1.3"
+  default: "v0.1.4"
   when: false
 
 mcp_can_connect:
