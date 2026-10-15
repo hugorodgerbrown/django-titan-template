@@ -59,13 +59,15 @@ example.
 | MCP URL | `https://<slug>.ultraniche.ai/mcp` | front page, Help, connector set-up, directory "server URL" | derived from `SITE_URL` |
 | Help, Terms, Privacy URLs | `/help/`, `/terms/`, `/privacy/` | footer, directory forms | the template |
 | Sender | `<Name> <<slug>@mail.ultraniche.ai>` | `DEFAULT_FROM_EMAIL` (send-only domain) | `titan deploy` |
-| **Contact / support email** | an address that **receives** mail | Help's "Contact us", Privacy's "Contact", Terms, directory "support contact" | by hand: the template ships `support@example.com` and *"Placeholder: add a contact address"* |
+| **Contact / support email** | `<slug>@ultraniche.ai`, forwarded to Hugo's inbox | Help's "Contact us", Privacy's "Contact", Terms, directory "support contact" | by hand: the template ships `support@example.com` and *"Placeholder: add a contact address"* |
 | Reviewer sign-in | `reviewer@<slug>.ultraniche.ai` + its code | directory forms only | admin, `ReviewerAccount` |
 | Developer / publisher | Ultraniche | directory forms | by hand |
 
-`mail.ultraniche.ai` only sends, so the contact address needs a mailbox
-or forward elsewhere. Traintrackr uses `support@traintrackr.live`; Tally
-and Gondola have no contact address on any page yet.
+One address per app, decided 15 October: `<slug>@ultraniche.ai`, a
+forward to Hugo's inbox. It shows which app a message is about, and stays
+apart from the sender, since `mail.ultraniche.ai` only sends. Traintrackr
+keeps `support@traintrackr.live` on its own domain; Tally and Gondola have
+no contact address on any page yet.
 
 **Decisions**
 
@@ -145,6 +147,7 @@ ones that bit us:
 - [ ] **Links in templates use `{% url %}` or `format_html`**, never `href="{{ var }}"`: semgrep's `var-in-href` fails `tox -e sast`
 - [ ] **New offline static files** go in `apps/pwa/conf.py: PRECACHE_STATIC`; watch the byte budget
 - [ ] **Replace every placeholder** on Help, Terms and Privacy: the contact address (`support@example.com`, *"Placeholder: add a contact address"*) and the *Placeholder* notices. Terms reviewed before launch
+- [ ] **Add the forward** for `<slug>@ultraniche.ai` and send it a test message before the address goes on any page
 - [ ] **Docs move with the code in the same PR.** Privacy, terms, help, README and `docs/accounts.md` say what this branch stores and sends (Traintrackr's terms once said the address was never stored while the code stored it)
 - [ ] **MCP tool descriptions** say what is withheld and why, so the assistant passes it on
 - [ ] `uv run tox` green before every PR; `PR title RAS-NN: …`, body starts `Closes RAS-NN`
@@ -207,7 +210,7 @@ What both reviews asked for, and where it lives in the template:
 | --- | --- | --- |
 | A test account with no email, SMS or MFA | `ReviewerAccount` in the admin: an address and a fixed six-digit code ([docs/accounts.md](template/docs/accounts.md#reviewer-accounts)) | Add `reviewer@<slug>.ultraniche.ai`, read the code, give both to the form |
 | Domain ownership for ChatGPT's directory | `/.well-known/openai-apps-challenge` serves `OPENAI_APPS_CHALLENGE` | Set the token on the app's group, deploy, then verify |
-| A support contact | Help's "Contact us" and Privacy's "Contact" (placeholders) | A real address that receives mail |
+| A support contact | Help's "Contact us" and Privacy's "Contact" (placeholders) | `<slug>@ultraniche.ai`, forward tested |
 | Privacy policy, terms, help | `/privacy/`, `/terms/`, `/help/`, and the `privacy_policy`, `terms_of_service`, `help` MCP tools | Check they say what *this* app stores, uses and sends |
 | An icon | `static/icons/` | Upload a 512×512 PNG |
 | Clear tool behaviour | the tools' descriptions | Read each one as a reviewer would; say what is withheld |
@@ -253,7 +256,7 @@ What both reviews asked for, and where it lives in the template:
 
 Carry these by hand until they land, then delete the line.
 
-- [ ] A copier question (or `apps/public/conf.py` setting) for the **contact email**, used by Help, Privacy and Terms, instead of `support@example.com`; and give Tally and Gondola one
+- [ ] A `CONTACT_EMAIL` in `apps/public/conf.py`, defaulting to `<slug>@ultraniche.ai`, used by Help, Privacy and Terms instead of `support@example.com`; and `tally@` and `gondola@` on Tally and Gondola
 - [ ] `titan new` flags for the other copier answers (copyright holder, colour, MCP, region), so the `copier update --data` step in phase 1 goes away
 - [ ] Pin mcp-auth **v0.1.5** and point `MCP_AUTH["ACCOUNT_NAME"]` at the masked address, so the consent page doesn't show the key ([RAS-49](https://linear.app/hugorodgerbrown/issue/RAS-49))
 - [ ] gunicorn `--access-logformat` without the query string, as Traintrackr's `render.yaml` has
