@@ -58,11 +58,13 @@ include_mcp:
   help: Serve an MCP endpoint at /mcp, authenticated by mcp-auth (OAuth 2.1)?
   default: true
 
+# Computed, not asked: the template pins mcp-auth, so `copier update` moves
+# every project to the template's release. As a question its answer was saved
+# and replayed, and projects stayed on the release they were made with.
 mcp_auth_version:
   type: str
-  help: mcp-auth release tag to pin
   default: "v0.1.3"
-  when: "{{ include_mcp }}"
+  when: false
 
 mcp_can_connect:
   type: str
