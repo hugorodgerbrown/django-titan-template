@@ -98,7 +98,8 @@ By hand instead:
 
 Add `https://<your host>/mcp` as a custom connector in Claude. Who may
 connect is `apps/mcp/policy.py` (staff only to start); the consent page
-signs people in through the normal email sign-in. For a local token:
+signs people in through the normal email sign-in and names the account
+by its masked address. For a local token:
 
 ```bash
 TOKEN=$(uv run python manage.py mint_mcp_token --commit -v 0)
