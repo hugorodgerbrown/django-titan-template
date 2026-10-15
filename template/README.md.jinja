@@ -82,8 +82,10 @@ By hand instead:
    (`EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_USE_TLS`).
 3. Create the env group `{{ project_slug }}` with `DATABASE_URL` (the
    instance's internal URL with this project's role and database),
-   `DJANGO_SECRET_KEY`, `EMAIL_HOST_PASSWORD` and `DEFAULT_FROM_EMAIL`.
-   Without the email settings nobody can sign in.
+   `DJANGO_SECRET_KEY`, `ACCOUNTS_EMAIL_KEY`, `EMAIL_HOST_PASSWORD` and
+   `DEFAULT_FROM_EMAIL`. Without the email settings nobody can sign in.
+   `ACCOUNTS_EMAIL_KEY` finds every account by its address: keep a copy, and
+   never change it (docs/accounts.md).
 4. In Render, New → Blueprint, pick this repository.
 5. On a custom domain, set `SITE_URL` (links in emails, and the passkey
    origin) in the app's group.

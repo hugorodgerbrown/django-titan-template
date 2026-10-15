@@ -32,6 +32,8 @@ COMMON_GROUP = "titan"
 APP_KEYS = (
     "DATABASE_URL",
     "DJANGO_SECRET_KEY",
+    # Keys every account's email address; never regenerated (docs/accounts.md).
+    "ACCOUNTS_EMAIL_KEY",
     "EMAIL_HOST_PASSWORD",
     "DEFAULT_FROM_EMAIL",
     "SITE_URL",
