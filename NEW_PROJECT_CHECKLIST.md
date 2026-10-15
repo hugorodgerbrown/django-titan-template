@@ -43,9 +43,9 @@ example.
 | --- | --- | --- | --- |
 | Name | Tally | header, manifest, emails, consent page, directory listings | copier `project_name` |
 | Slug | `tally` | repo, Render services, database and role, subdomain, Resend key, cache prefix | copier `project_slug` |
-| One-line description | Interval workouts, run hands-free on a phone | manifest, meta description, placeholder share card | copier `description` |
+| One-line description | Interval workouts built from a library of exercises, run hands-free on a phone | manifest, meta description, placeholder share card | copier `description` |
 | Promise (the H1) and lede | Timed and tallied. Say hi to your new AI trainer. | front page, share card | `public/home.html` |
-| Brand colour | `#…` | icons, `theme-color`, launch screen, share card | copier `theme_colour` |
+| Brand colour | `#1F3FD8` | icons, `theme-color`, launch screen, share card | copier `theme_colour` |
 | Icon | `static/icons/icon.svg` | home screen, favicon, **512×512 PNG for the directories** | `bin/make-icons` draws a placeholder; replace it |
 | Share card | `static/img/share.png`, 1200×630 | link unfurls | `bin/make-share-card` placeholder; replace it |
 | Copyright holder | Ultraniche | footer © line | copier `copyright_holder` |
