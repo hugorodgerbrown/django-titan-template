@@ -9,6 +9,14 @@
       "updates": true
     },
     {
+      "slug": "shift",
+      "name": "Shift",
+      "repo": "hugorodgerbrown/shift",
+      "domain": "shift.ultraniche.ai",
+      "stage": "new",
+      "updates": true
+    },
+    {
       "slug": "tally",
       "name": "Tally",
       "repo": "hugorodgerbrown/tally",
