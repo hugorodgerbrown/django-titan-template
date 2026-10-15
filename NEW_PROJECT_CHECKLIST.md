@@ -47,8 +47,8 @@ example.
 | Promise (the H1) and lede | Timed and tallied. Say hi to your new AI trainer. | front page, share card | `public/home.html` |
 | Brand colour | `#1F3FD8` | icons, `theme-color`, launch screen, share card | copier `theme_colour` |
 | Icon | `static/icons/icon.svg` | home screen, favicon, **512×512 PNG for the directories** | `bin/make-icons` draws a placeholder; replace it |
-| Share card | `static/img/share.png`, 1200×630 | link unfurls | `bin/make-share-card` placeholder; replace it |
-| Copyright holder | Ultraniche | footer © line | copier `copyright_holder` |
+| Share card | `static/img/share-card.png`, 1200×630 | link unfurls | `bin/make-share-card` placeholder; replace it |
+| Copyright holder | Ultraniche (Tally still has the default, Hugo Rodger-Brown) | footer © line | copier `copyright_holder` |
 | Linear project and key | Tally, `RAS-` | issues, PR titles | Phase 0 |
 
 **Addresses**
@@ -73,7 +73,7 @@ and Gondola have no contact address on any page yet.
 | --- | --- | --- |
 | Serve `/mcp`? | yes | copier `include_mcp` |
 | Who may connect | staff only; widen to active accounts for launch | `apps/mcp/policy.py`, in a PR that says so |
-| Keep email addresses? | no: a key and a masked address | `ACCOUNTS_KEEP_EMAIL` in settings; decide before the first user |
+| Keep email addresses? | no: a key and a masked address | `ACCOUNTS_KEEP_EMAIL` in settings; can be switched later, accounts convert at next sign-in |
 | Scheduled jobs | the daily purge | `render.yaml` (leave the cron out if there are none) |
 | Render region | frankfurt | copier `render_region` |
 | What the tools withhold | nothing | app's CLAUDE.md, tool descriptions, privacy notice |
@@ -118,7 +118,14 @@ Already done for the apps so far; check it once on a new machine.
 titan new <slug> --name "<Name>" --description "<one line>"
 ```
 
-- [ ] Answer copier's questions: name, slug, description, **copyright holder** (Ultraniche, for the footer), brand colour, MCP on or off, Render region
+- [ ] `titan new` only asks for the name and description; copier takes the template's defaults for everything else. Set the rest straight after, in the new checkout, then commit and push:
+
+  ```sh
+  copier update --trust --defaults \
+    --data copyright_holder=Ultraniche \
+    --data theme_colour='#1F3FD8' \
+    --data include_mcp=true --data render_region=frankfurt
+  ```
 - [ ] Check the new repo is private on GitHub and the app is in [apps.json](apps.json) at stage `new`
 - [ ] Add the repo to the Claude project and to the weekly copier routine's repositories. The routine can only reach repos in its settings, so an app in `apps.json` but not there is silently skipped
 - [ ] Add the repo to the Titan Linear project's links
@@ -129,9 +136,9 @@ Rules every app carries in its generated `CLAUDE.md` and `DESIGN.md`. The
 ones that bit us:
 
 - [ ] **Every branch starts with `copier update --trust`** as its own first commit, then `uv run tox`. Skip the commit if nothing changed; never an empty commit
-- [ ] **Accounts keep a key, not the address.** Leave `ACCOUNTS_KEEP_EMAIL` off unless the app must email people after sign-in (digests, alerts). Decide this **before the first real user**: the custom `accounts.User` can't be swapped in by a migration later
+- [ ] **Accounts keep a key, not the address.** Leave `ACCOUNTS_KEEP_EMAIL` off unless the app must email people after sign-in (digests, alerts). It can be switched later: each account converts at its next sign-in. What can't change is `ACCOUNTS_EMAIL_KEY` (phase 3)
 - [ ] **Front page in the shared shape** (DESIGN.md §12): the promise as H1, one primary action named for the first job, the product drawn live with demo data (not a screenshot), the AI-chat section with the `/mcp` address and a link to Help's *Use it from Claude or ChatGPT*, the closing action, the footer with ©
-- [ ] **Share card:** replace the placeholder `static/img/share.png` with a 1200×630 card, the promise beside the product. No `og:url` tag (a sign-in link's address is its token)
+- [ ] **Share card:** replace the placeholder `static/img/share-card.png` with a 1200×630 card, the promise beside the product. No `og:url` tag (a sign-in link's address is its token)
 - [ ] **Header:** the mark goes home; one link on the right, *Sign in* or *Open the app*. No passkey prompt until *Sign in with a passkey* is pressed
 - [ ] **Design page** at `/app/design/` shows every new component and state; tokens only (`tests/test_design.py` fails a raw colour or an undeclared `var()`)
 - [ ] **Onboarding tour:** write `docs/onboarding-tour.md` and agree it before building; runs on a private demo copy, measured in fivebar
@@ -247,6 +254,7 @@ What both reviews asked for, and where it lives in the template:
 Carry these by hand until they land, then delete the line.
 
 - [ ] A copier question (or `apps/public/conf.py` setting) for the **contact email**, used by Help, Privacy and Terms, instead of `support@example.com`; and give Tally and Gondola one
+- [ ] `titan new` flags for the other copier answers (copyright holder, colour, MCP, region), so the `copier update --data` step in phase 1 goes away
 - [ ] Pin mcp-auth **v0.1.5** and point `MCP_AUTH["ACCOUNT_NAME"]` at the masked address, so the consent page doesn't show the key ([RAS-49](https://linear.app/hugorodgerbrown/issue/RAS-49))
 - [ ] gunicorn `--access-logformat` without the query string, as Traintrackr's `render.yaml` has
 - [ ] The "docs move with the code in the same PR" rule in the template's CLAUDE.md (only Traintrackr has it)
