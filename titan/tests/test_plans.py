@@ -126,9 +126,12 @@ def test_deploy_fills_both_groups_before_the_blueprint(make_ctx: Any, checked: l
         "DATABASE_URL": f"postgresql://tally:{password}@dpg-abc123-a:5432/tally",
         "EMAIL_HOST_PASSWORD": "re_app_key",
         "DJANGO_SECRET_KEY": app_group["DJANGO_SECRET_KEY"],
+        "ACCOUNTS_EMAIL_KEY": app_group["ACCOUNTS_EMAIL_KEY"],
         "DEFAULT_FROM_EMAIL": "Tally <tally@mail.ultraniche.ai>",
     }
     assert len(app_group["DJANGO_SECRET_KEY"]) > 50
+    assert len(app_group["ACCOUNTS_EMAIL_KEY"]) > 50
+    assert app_group["ACCOUNTS_EMAIL_KEY"] != app_group["DJANGO_SECRET_KEY"]
     # The Blueprint linked the groups and its first deploy went live: no redeploy.
     assert render.deploys == []
     assert view.opened == [ctx.app.blueprint_link()]
@@ -171,7 +174,7 @@ def test_deploy_dry_run_changes_nothing(make_ctx: Any, checked: list[str]) -> No
         "Create the shared env group 'titan'",
         "Create role and database tally on shared-db",
         "Create a sending-only Resend key 'tally'",
-        "App env group 'tally': set DJANGO_SECRET_KEY, DEFAULT_FROM_EMAIL",
+        "App env group 'tally': set DJANGO_SECRET_KEY, ACCOUNTS_EMAIL_KEY, DEFAULT_FROM_EMAIL",
         "Deploy the Blueprint in Render",
     ]
 

@@ -367,10 +367,12 @@ def _mail_key(ctx: Context, plan: Plan) -> None:
 
 
 def _app_values(ctx: Context, plan: Plan) -> None:
-    """The secret key and sender, unless the app already has them."""
+    """The secret keys and sender, unless the app already has them."""
     wanted: dict[str, Callable[[], str]] = {}
     if not ctx.value("DJANGO_SECRET_KEY"):
         wanted["DJANGO_SECRET_KEY"] = lambda: secrets.token_urlsafe(50)
+    if not ctx.value("ACCOUNTS_EMAIL_KEY"):
+        wanted["ACCOUNTS_EMAIL_KEY"] = lambda: secrets.token_urlsafe(50)
     if not ctx.value("DEFAULT_FROM_EMAIL"):
         wanted["DEFAULT_FROM_EMAIL"] = lambda: ctx.app.from_email
     title = f"App env group {ctx.app.group!r}"
