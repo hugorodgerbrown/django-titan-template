@@ -26,7 +26,7 @@ with Face ID, a fingerprint or a device PIN from then on.
 | `apps/accounts/passkeys.py` | WebAuthn options and verification (py_webauthn) |
 | `apps/accounts/views.py` | The sign-in, code, link, sign-out, account and passkey endpoints |
 | `apps/accounts/tasks.py` | `send_sign_in_email`, enqueued by the view (`django.tasks`) |
-| `apps/accounts/models.py` | `SignInRequest`, `Passkey` |
+| `apps/accounts/models.py` | `SignInRequest`, `Passkey`, `ReviewerAccount` |
 | `static/js/passkeys.js`, `webauthn_json.js` | The browser side of both ceremonies |
 | `static/js/code_input.js` | The code as six digit boxes; a pasted or autofilled code fills them all |
 | `apps/core/ratelimit.py` | Cache-backed limits on emails, codes and passkey challenges |
@@ -93,6 +93,31 @@ superuser with your email as the username, then sign in by email:
 ```bash
 uv run python manage.py createsuperuser --username you@example.com --email you@example.com
 ```
+
+## Reviewer accounts
+
+App directories (OpenAI's for ChatGPT, Anthropic's for Claude) review an
+app by signing in to a test account, and refuse one that needs an inbox, an
+SMS or any other verification step. A reviewer account is an address that
+signs in with a fixed code instead:
+
+1. In the admin, add a **Reviewer account** with an address that has no
+   mailbox behind it, such as `reviewer@<slug>.ultraniche.ai`. Its six-digit
+   code is made when you save it.
+2. Give the reviewers the address, the code, and: "Enter the email on the
+   sign-in page, then type the code on the next page. No email is sent."
+3. After the review, select the account and run **Give the selected
+   accounts a new code**, or delete it.
+
+- **Nothing else changes.** The reviewer uses `/signin/` and
+  `/signin/code/` like anyone else. `sign_in.issue()` gives that address's
+  request the fixed code, and the view sends it no email. The account
+  itself is made on first sign-in, as for anyone.
+- **Same limits.** Five wrong codes end a request, and an address gets five
+  requests an hour, so the code can't be guessed in any useful time.
+- **The code is kept as it is,** not hashed like an emailed code, so staff
+  can read it in the admin. It is a shared test credential for an account
+  with no one's data in it, not a person's secret.
 
 ## Email
 
