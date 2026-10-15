@@ -13,7 +13,7 @@ What is on by default, and what checks it.
 | Rate limits on sign-in emails, codes and passkey challenges | `apps/core/ratelimit.py` | `tests/accounts/test_views.py`, `test_passkeys.py` |
 | Passkeys require user verification; challenges are single-use | `apps/accounts/passkeys.py` | `tests/accounts/test_passkeys.py`, `tests/e2e/test_passkey.py` |
 | Post-sign-in redirects stay on this site | `apps/core/redirects.py` | `tests/core/test_redirects.py` |
-| Signing out drops cached pages on the device | `pwa.js` + `Clear-Site-Data` | `tests/accounts/test_views.py` |
+| Signing out drops cached pages on the device | `pwa.js`; signed-in pages sent `no-store` (`apps/core/private_pages.py`) | `tests/accounts/test_views.py`, `tests/core/test_private_pages.py` |
 | Each keyed write runs at most once, per user, per body | `apps/core/idempotency.py` | `tests/core/test_idempotency.py` |
 | Signed-out writes get 401, never a redirect | `login_required_json` | `tests/notes/test_views.py` |
 | Fragments refuse non-htmx requests | `require_htmx` | `tests/core/test_decorators.py` |
