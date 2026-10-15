@@ -15,6 +15,14 @@
       "domain": "tally.ultraniche.ai",
       "stage": "live",
       "updates": true
+    },
+    {
+      "slug": "titan-shift",
+      "name": "Shift",
+      "repo": "hugorodgerbrown/titan-shift",
+      "domain": "titan-shift.ultraniche.ai",
+      "stage": "new",
+      "updates": true
     }
   ]
 }
