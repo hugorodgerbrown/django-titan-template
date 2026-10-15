@@ -6,7 +6,7 @@ from django.urls import include, path
 from apps.accounts.views import admin_login
 from apps.core.views import healthz, livez
 {%- if include_mcp %}
-from apps.mcp.views import mcp
+from apps.mcp.views import mcp, openai_apps_challenge
 {%- endif %}
 from apps.pwa.conf import APP_NAME
 
@@ -30,5 +30,7 @@ urlpatterns = [
 {%- if include_mcp %}
     path("", include("mcp_auth.urls")),
     path("mcp", mcp, name="mcp"),
+    # OpenAI's domain check for ChatGPT's app directory.
+    path(".well-known/openai-apps-challenge", openai_apps_challenge, name="openai-apps-challenge"),
 {%- endif %}
 ]

@@ -295,6 +295,9 @@ MCP_AUTH = {
         "https://platform.openai.com",
     ],
 }
+# The token OpenAI's platform issues to verify the domain before ChatGPT's
+# app directory lists the MCP server: off (a 404) unless set.
+OPENAI_APPS_CHALLENGE: str = config("OPENAI_APPS_CHALLENGE", default="")
 {%- endif %}
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
