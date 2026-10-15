@@ -147,3 +147,19 @@ def test_a_closed_account_cannot_sign_in() -> None:
     UserFactory.create(address="gone@example.com", is_active=False)
     request, _, _ = sign_in.issue("gone@example.com")
     assert sign_in.user_for(request) is None
+
+
+@pytest.mark.parametrize("keep_before", [False, True])
+def test_changing_keep_email_keeps_the_accounts(settings: Any, keep_before: bool) -> None:
+    """Turning ACCOUNTS_KEEP_EMAIL on or off later restores, not duplicates, an account."""
+    settings.ACCOUNTS_KEEP_EMAIL = keep_before
+    user = sign_in.user_for(sign_in.issue("walker@example.com")[0])
+    settings.ACCOUNTS_KEEP_EMAIL = not keep_before
+    assert sign_in.user_for(sign_in.issue("walker@example.com")[0]) == user
+    assert get_user_model().objects.count() == 1
+    assert user is not None
+    user.refresh_from_db()
+    if keep_before:
+        assert (user.username, user.email) == (email_key("walker@example.com"), "")
+    else:
+        assert user.username == user.email == "walker@example.com"

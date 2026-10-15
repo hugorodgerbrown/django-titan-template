@@ -19,7 +19,7 @@ from typing import Any
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db import transaction
-from django.db.models import F
+from django.db.models import F, Q
 from django.utils import timezone
 from django.utils.crypto import salted_hmac
 
@@ -131,22 +131,29 @@ def _username(request: SignInRequest) -> str:
     return request.email or request.email_key
 
 
-def _adopt_created_account(request: SignInRequest) -> Any | None:
-    """Return a ``createsuperuser`` account with the request's address, keyed now.
+def _adopt_account(request: SignInRequest) -> Any | None:
+    """Return an account stored another way for the request's address, restored now.
 
-    ``createsuperuser`` stores the address it is given, so the first
-    sign-in with it finds that account by email, and gives it the key,
-    the masked address and (unless addresses are kept) a blank email.
-    Where addresses aren't kept, only accounts made that way still have one,
-    so there are few to look through.
+    Two kinds: one ``createsuperuser`` made, which stores the address it is
+    given; and one made before ``ACCOUNTS_KEEP_EMAIL`` changed, whose
+    username is the other form (the key, or the address). Either is given
+    the request's username, masked address and email (blank unless
+    addresses are kept). Where addresses aren't kept, only accounts made
+    with one still have it, so there are few to look through.
     """
     user_model = get_user_model()
     if request.email:
-        candidates = user_model.objects.filter(email__iexact=request.email)
+        candidates = user_model.objects.filter(
+            Q(email__iexact=request.email) | Q(username=request.email_key)
+        )
     else:
         candidates = user_model.objects.exclude(email="")
     user = next(
-        (u for u in candidates.order_by("pk") if username_for(u.email) == _username(request)),
+        (
+            u
+            for u in candidates.order_by("pk")
+            if u.username == request.email_key or username_for(u.email) == _username(request)
+        ),
         None,
     )
     if user is not None:
@@ -154,7 +161,7 @@ def _adopt_created_account(request: SignInRequest) -> Any | None:
         user.masked_email = request.masked_email
         user.email = request.email
         user.save(update_fields=["username", "masked_email", "email"])
-        logger.info("accounts.keyed user=%s", user.pk)
+        logger.info("accounts.restored user=%s", user.pk)
     return user
 
 
@@ -163,12 +170,13 @@ def user_for(request: SignInRequest) -> Any | None:
 
     Returns None for a deactivated account: it can't be signed back in by
     email. Accounts are found by username (``username_for``), or, the first
-    time, by the address ``createsuperuser`` stored (``_adopt_created_account``).
+    time after ``createsuperuser`` or a change to ``ACCOUNTS_KEEP_EMAIL``,
+    as ``_adopt_account`` says.
     """
     user_model = get_user_model()
     user = user_model.objects.filter(username=_username(request)).first()
     if user is None:
-        user = _adopt_created_account(request)
+        user = _adopt_account(request)
     if user is None:
         user = user_model(
             username=_username(request),

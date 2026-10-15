@@ -48,6 +48,9 @@ see which account they are signed in to.
   addresses.
 - `createsuperuser` stores the address it is given. The first sign-in with
   that address finds the account by it, then keys it and blanks the address.
+- Turning `ACCOUNTS_KEEP_EMAIL` on or off later keeps every account: each
+  is found by its old username at its next sign-in and stored the new way.
+  Turning it on stores addresses only as people sign in again.
 - Reviewer accounts keep their address as it is: a test address with no one
   behind it, which staff read in the admin.
 - The address is a task argument while the sign-in email is sent. With the
