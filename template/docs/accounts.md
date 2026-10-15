@@ -150,7 +150,9 @@ a queue-backed backend and a worker when volume needs it.
 ## Signing out
 
 `POST /signout/`. `pwa.js` deletes the service worker's cached pages and
-the recorded user before the form posts, and the response sends
-`Clear-Site-Data: "cache"`, so the next person on the device can't open the
-last one's pages offline. Unsent outbox rows stay on the device and are
+the recorded user before the form posts, so the next person on the device
+can't open the last one's pages offline. Other signed-in pages are sent
+`no-store` (`apps/core/private_pages.py`), so Back can't show them from the
+browser's cache. Don't send `Clear-Site-Data: "cache"`: Chrome walks its whole
+disk cache before following the redirect, which held sign-out for ~25 s. Unsent outbox rows stay on the device and are
 sent only if the same user signs back in.
