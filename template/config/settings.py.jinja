@@ -79,6 +79,11 @@ SILENCED_SYSTEM_CHECKS = [
 # Visitor counts by fivebar: off unless set, to the domain the site was
 # added to fivebar under (titan sets it at go-live). See apps/core/analytics.py.
 FIVEBAR_DOMAIN: str = config("FIVEBAR_DOMAIN", default="")
+{%- if include_mcp %}
+# A fivebar token made to send events and nothing else: with FIVEBAR_DOMAIN,
+# each MCP tool call is counted as a server event. See apps/mcp/events.py.
+FIVEBAR_TOKEN: str = config("FIVEBAR_TOKEN", default="")
+{%- endif %}
 
 # Content Security Policy: everything from this origin, nothing inline.
 # There is no inline <script> anywhere; the launch-screen gate is a tiny
