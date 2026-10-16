@@ -55,9 +55,10 @@ An MCP client calls from its own servers, so the tag never sees the MCP
 endpoint. fivebar's server events (https://fiveb.ar/docs/server-events)
 count it instead: `apps/mcp/events.py` sends one event per `tools/call`.
 
-- Named after the tool, `/add_note`, so it lands in Top pages beside the
-  site's pages, with `props.outcome` `ok` or `error` (a `ToolError`). An
-  unknown tool name or bad arguments send nothing.
+- Named after the tool under `/mcp/`, `/mcp/add_note` (RAS-54), so it
+  lands in Top pages beside the site's pages but can't be taken for one,
+  with `props.outcome` `ok` or `error` (a `ToolError`). An unknown tool
+  name or bad arguments send nothing.
 - Off unless `FIVEBAR_TOKEN` is set as well as `FIVEBAR_DOMAIN`: a token
   made for the one site with **Send events** and not **Read stats**, so a
   leaked one reads nothing. It is made by hand; titan doesn't mint it.

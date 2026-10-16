@@ -187,7 +187,7 @@ titan golive <slug>
 - [ ] titan sets `SITE_URL=https://<slug>.ultraniche.ai` and `FIVEBAR_DOMAIN`, adds the site to fivebar, deploys, and moves the app to `live` in `apps.json`
 - [ ] **Passkeys:** add one on the real domain. If it fails, `SITE_URL` is wrong (the RP ID must be the domain people use)
 - [ ] **fivebar:** sign up once on the live domain; *Sign up* should appear under Goals
-- [ ] **fivebar, MCP calls:** make a token for the site in fivebar's Settings with only **Send events** ticked, set it as `FIVEBAR_TOKEN` in the app's group, call a tool from Claude; it should appear in Top pages as `/<tool>`
+- [ ] **fivebar, MCP calls:** make a token for the site in fivebar's Settings with only **Send events** ticked, set it as `FIVEBAR_TOKEN` in the app's group, call a tool from Claude; it should appear in Top pages as `/mcp/<tool>`
 - [ ] Unfurl the front page in Slack or iMessage and check the share card
 - [ ] An app on its own domain (Traintrackr on `traintrackr.live`) does this step by hand: domain on the service, add it to `DJANGO_ALLOWED_HOSTS`, set `SITE_URL` and `FIVEBAR_DOMAIN` in the app's group
 - [ ] Add the app to the [ultraniche.ai homepage](https://github.com/hugorodgerbrown/ultraniche-homepage): one edit to its `apps.json`
