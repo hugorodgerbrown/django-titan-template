@@ -156,7 +156,10 @@ def _call_tool(user: Any, params: dict[str, Any], client: str = "") -> dict[str,
     tool = TOOLS.get(name) if isinstance(name, str) else None
     if tool is None:
         raise RpcError(INVALID_PARAMS, f"Unknown tool: {name}")
-    args = params.get("arguments") or {}
+    # Absent or null is no arguments; anything else must be an object.
+    args = params.get("arguments")
+    if args is None:
+        args = {}
     if not isinstance(args, dict):
         raise RpcError(INVALID_PARAMS, "arguments must be an object")
     try:

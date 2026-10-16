@@ -110,6 +110,7 @@ def test_a_tool_error_is_counted_as_an_error(sent: list[dict[str, Any]]) -> None
     [
         ("tools/call", {"name": "no_such_tool"}),
         ("tools/call", {"name": "list_notes", "arguments": "not an object"}),
+        ("tools/call", {"name": "help", "arguments": []}),
         ("tools/list", {}),
         ("initialize", {}),
     ],
@@ -147,8 +148,35 @@ def test_nothing_is_sent_while_off(
 def test_a_failed_send_is_logged_not_raised(error: Exception, caplog: Any) -> None:
     """A fivebar that is down or slow never reaches the caller."""
     with mock.patch.object(events.urllib.request, "urlopen", side_effect=error):
-        events._send({"name": "/help"}, TOKEN)
+        events._post({"name": "/help"}, TOKEN)
     assert "fivebar.event" in caplog.text
+
+
+@pytest.mark.django_db
+@pytest.mark.usefixtures("on")
+def test_null_arguments_are_no_arguments(sent: list[dict[str, Any]]) -> None:
+    """A call with "arguments": null runs the tool and counts it."""
+    call(UserFactory.create(), "help", None)  # type: ignore[arg-type]
+    assert [r["body"]["name"] for r in sent] == ["/help"]
+
+
+@pytest.mark.django_db
+@pytest.mark.usefixtures("on")
+def test_events_past_the_backlog_are_dropped(monkeypatch: Any, caplog: Any) -> None:
+    """While fivebar is stuck, the queue stops growing; once a send ends, its place frees."""
+    submitted: list[Any] = []
+    monkeypatch.setattr(events, "_pending", events.threading.BoundedSemaphore(2))
+    monkeypatch.setattr(events, "_pool", mock.Mock(submit=lambda *a: submitted.append(a)))
+    user = UserFactory.create()
+    for _ in range(3):
+        events.tool_called(user, "help", events.OK)
+    assert len(submitted) == 2
+    assert "dropped=backlog" in caplog.text
+    with mock.patch.object(events, "_post"):
+        func, event, token = submitted[0]
+        func(event, token)
+    events.tool_called(user, "help", events.OK)
+    assert len(submitted) == 3
 
 
 @pytest.mark.parametrize(
