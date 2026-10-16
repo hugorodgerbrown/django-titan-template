@@ -3,6 +3,7 @@
 import contextlib
 import inspect
 import json
+import threading
 import urllib.error
 from typing import Any
 from unittest import mock
@@ -220,3 +221,29 @@ def test_the_privacy_notice_names_mcp_counts_only_while_on(settings: Any) -> Non
     assert "uses one of our tools" not in page_as_markdown("privacy")["markdown"]
     settings.FIVEBAR_TOKEN = TOKEN
     assert "uses one of our tools" in page_as_markdown("privacy")["markdown"]
+
+
+def test_the_sender_never_holds_up_a_stopping_process() -> None:
+    """Its threads are daemons, so the process can exit with sends still queued."""
+    sender = events._Sender(workers=1)
+    ran = threading.Event()
+    sender.submit(lambda: None)
+    sender.submit(ran.set)
+    assert ran.wait(timeout=5)
+    threads = [t for t in threading.enumerate() if t.name == "fivebar-0"]
+    assert threads
+    assert all(t.daemon for t in threads)
+
+
+def test_a_failing_send_does_not_stop_the_sender(caplog: Any) -> None:
+    """An unexpected error is logged and the next send still runs."""
+    sender = events._Sender(workers=1)
+    ran = threading.Event()
+
+    def broken() -> None:
+        raise RuntimeError
+
+    sender.submit(broken)
+    sender.submit(ran.set)
+    assert ran.wait(timeout=5)
+    assert "fivebar.event failed" in caplog.text
