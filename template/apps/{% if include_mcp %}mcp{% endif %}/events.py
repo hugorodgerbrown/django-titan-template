@@ -2,7 +2,8 @@
 
 An MCP client calls from its own servers, so there is no page for
 fivebar's tag. Instead, each ``tools/call`` sends fivebar one event, once
-the tool has answered, counted as a pageview of ``/<tool name>``.
+the tool has answered, counted as a pageview of ``/mcp/<tool name>``, so MCP calls sort
+apart from the site's pages.
 
 Off unless both ``FIVEBAR_DOMAIN`` and ``FIVEBAR_TOKEN`` (a token made in
 fivebar to send events and nothing else) are set.
@@ -35,6 +36,8 @@ ENDPOINT = f"{ORIGIN}/api/events"
 TIMEOUT = 2  # seconds; fivebar answers well inside it, and nothing waits on it
 OK = "ok"
 ERROR = "error"
+# Every tool's event is named under this, e.g. /mcp/add_note.
+PREFIX = "/mcp/"
 
 # Two threads per process are plenty: each send is one short POST.
 _pool = ThreadPoolExecutor(max_workers=2, thread_name_prefix="fivebar")
@@ -63,7 +66,7 @@ def tool_called(user: Any, tool: str, outcome: str, client: str = "") -> None:
         return
     event: dict[str, Any] = {
         "site": domain,
-        "name": f"/{tool}",
+        "name": f"{PREFIX}{tool}",
         "id": caller_id(user),
         "props": {"outcome": outcome},
     }

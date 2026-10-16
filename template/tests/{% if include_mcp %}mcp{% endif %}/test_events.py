@@ -73,7 +73,7 @@ def test_a_tool_call_sends_one_event(sent: list[dict[str, Any]]) -> None:
     assert request["timeout"] == events.TIMEOUT
     assert request["body"] == {
         "site": DOMAIN,
-        "name": "/add_note",
+        "name": "/mcp/add_note",
         "id": events.caller_id(user),
         "client": "claude",
         "props": {"outcome": "ok"},
@@ -148,7 +148,7 @@ def test_nothing_is_sent_while_off(
 def test_a_failed_send_is_logged_not_raised(error: Exception, caplog: Any) -> None:
     """A fivebar that is down or slow never reaches the caller."""
     with mock.patch.object(events.urllib.request, "urlopen", side_effect=error):
-        events._post({"name": "/help"}, TOKEN)
+        events._post({"name": "/mcp/help"}, TOKEN)
     assert "fivebar.event" in caplog.text
 
 
@@ -157,7 +157,7 @@ def test_a_failed_send_is_logged_not_raised(error: Exception, caplog: Any) -> No
 def test_null_arguments_are_no_arguments(sent: list[dict[str, Any]]) -> None:
     """A call with "arguments": null runs the tool and counts it."""
     call(UserFactory.create(), "help", None)  # type: ignore[arg-type]
-    assert [r["body"]["name"] for r in sent] == ["/help"]
+    assert [r["body"]["name"] for r in sent] == ["/mcp/help"]
 
 
 @pytest.mark.django_db
