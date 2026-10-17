@@ -73,15 +73,15 @@ async function forgetPages() {
 async function fromPage(event) {
   const request = event.request;
   const cache = await caches.open(names.pages);
+  let keep;
   const network = fetch(request).then((response) => {
-    if (SwCore.isStorable(response)) {
-      event.waitUntil(cache.put(request, response.clone()));
-    } else if (SwCore.isSignedOut(response)) {
-      event.waitUntil(forgetPages());
-    }
+    if (SwCore.isStorable(response)) keep = cache.put(request, response.clone());
+    else if (SwCore.isSignedOut(response)) keep = forgetPages();
     return response;
   });
-  network.catch(() => undefined); // handled below; silences the unhandled-rejection report
+  // Registered now, while the event is live: a cached copy may answer first,
+  // and waitUntil() called after the response has settled would throw.
+  event.waitUntil(network.then(() => keep, () => undefined));
 
   const timedOut = new Promise((resolve) => setTimeout(() => resolve('timeout'), PAGE_TIMEOUT_MS));
   try {
