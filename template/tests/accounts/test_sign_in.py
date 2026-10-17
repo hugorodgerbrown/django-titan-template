@@ -72,6 +72,16 @@ def test_issue_retries_when_a_request_at_the_same_moment_won() -> None:
     assert SignInRequest.objects.for_email("a@example.com").unused().get() == request
 
 
+def test_issue_gives_up_after_its_attempts() -> None:
+    """A request that keeps colliding fails rather than looping for ever."""
+    with (
+        mock.patch.object(sign_in, "_replace_request", side_effect=IntegrityError),
+        pytest.raises(IntegrityError),
+    ):
+        sign_in.issue("a@example.com")
+    assert not SignInRequest.objects.exists()
+
+
 @pytest.mark.django_db(transaction=True)
 def test_migration_keeps_only_the_newest_unused_request() -> None:
     """Older unused requests for an address are retired so the constraint can be added."""

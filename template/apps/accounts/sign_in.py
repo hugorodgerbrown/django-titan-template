@@ -36,6 +36,8 @@ from apps.accounts.models import (
 logger = logging.getLogger(__name__)
 
 CODE_DIGITS = 6
+# Tries at storing a request when others for the address land at once.
+ISSUE_ATTEMPTS = 5
 
 
 def _hash_token(token: str) -> str:
@@ -69,13 +71,16 @@ def issue(email: str, next_url: str = "") -> tuple[SignInRequest, str, str]:
     email = normalise_email(email)
     token = secrets.token_urlsafe(32)
     code = reviewer_code(email) or f"{secrets.randbelow(10**CODE_DIGITS):0{CODE_DIGITS}d}"
-    # The database allows one unused request per address. Two requests at
-    # once both find nothing to retire; the second to insert collides, and
-    # its retry retires the first, so the newest still wins.
-    try:
-        request = _replace_request(email, token, code, next_url)
-    except IntegrityError:
-        request = _replace_request(email, token, code, next_url)
+    # The database allows one unused request per address. Requests at the
+    # same moment all find nothing to retire; each one that collides tries
+    # again and retires the winner, so the newest still wins.
+    for attempt in range(ISSUE_ATTEMPTS):
+        try:
+            request = _replace_request(email, token, code, next_url)
+            break
+        except IntegrityError:
+            if attempt == ISSUE_ATTEMPTS - 1:
+                raise
     return request, token, code
 
 

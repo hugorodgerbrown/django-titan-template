@@ -37,6 +37,7 @@ beforeEach(async () => {
       delete: async (url) => stored.delete(String(url.url ?? url)),
       match: async (url) => stored.get(String(url.url ?? url)),
     }),
+    delete: async () => stored.clear(),
   });
   await AppDB.setMeta('principal', '7');
 });
@@ -93,14 +94,17 @@ async function visit(response) {
 
 describe('page fetch', () => {
   const cachedUrl = () => `${self.location.origin}/app/`;
+  const otherUrl = () => `${self.location.origin}/app/other/`;
 
   it.each([
     ['sent on to sign-in', { redirected: true }],
     ['refused', { ok: false, status: 403 }],
-  ])('drops the cached copy of a page now %s', async (_, overrides) => {
+  ])('forgets every cached page and the principal when a page is %s', async (_, overrides) => {
     stored.set(cachedUrl(), page());
+    stored.set(otherUrl(), page());
     await visit({ ...page(), ...overrides });
-    expect(stored.has(cachedUrl())).toBe(false);
+    expect(stored.size).toBe(0);
+    expect(await AppDB.getMeta('principal')).toBe('');
   });
 
   it('keeps the cached copy through a server error', async () => {
