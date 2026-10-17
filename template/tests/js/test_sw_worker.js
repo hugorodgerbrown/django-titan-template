@@ -107,6 +107,31 @@ describe('page fetch', () => {
     expect(await AppDB.getMeta('principal')).toBe('');
   });
 
+  it('still forgets the pages when a slow sign-out arrives after the cached copy', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout'] });
+    try {
+      stored.set(cachedUrl(), page());
+      let answer;
+      vi.stubGlobal('fetch', vi.fn(() => new Promise((resolve) => (answer = resolve))));
+      const events = [];
+      let reply;
+      const request = { url: cachedUrl(), method: 'GET', mode: 'navigate' };
+      onFetch({
+        request,
+        respondWith: (promise) => (reply = promise.then((r) => (events.push('replied'), r))),
+        waitUntil: (promise) => (events.push('waitUntil'), (reply.cleanup = promise)),
+      });
+      await vi.advanceTimersByTimeAsync(4000);
+      expect(await reply).toBe(stored.get(cachedUrl()));
+      answer({ ...page(), redirected: true });
+      await reply.cleanup;
+      expect(events).toEqual(['waitUntil', 'replied']);
+      expect(stored.size).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('keeps the cached copy through a server error', async () => {
     stored.set(cachedUrl(), page());
     await visit({ ...page(), ok: false, status: 500 });
