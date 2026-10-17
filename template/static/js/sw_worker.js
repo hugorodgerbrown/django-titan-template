@@ -7,7 +7,9 @@
  *   install   precache the shell: static files and the offline page
  *   activate  delete this app's caches from older versions; take control
  *   fetch     static: cache-first. pages: network-first, falling back to the
- *             cached copy after PAGE_TIMEOUT_MS, then to the offline page
+ *             cached copy after PAGE_TIMEOUT_MS, then to the offline page;
+ *             a page that now redirects or is refused means the session
+ *             is gone, so every cached page goes
  *   sync      Background Sync: send the outbox with no page open
  *   message   'cache-page' (cache the page that just loaded), 'drain'
  *
@@ -59,12 +61,23 @@ async function fromStatic(request) {
   }
 }
 
+// The session that cached these pages is gone, and the sign-in page it was
+// sent to is public, so no pwa.js runs to clear them: forget the principal
+// first, so a cache-page already in flight takes its copy out again, then
+// every cached page.
+async function forgetPages() {
+  await AppDB.setMeta('principal', '');
+  await caches.delete(names.pages);
+}
+
 async function fromPage(event) {
   const request = event.request;
   const cache = await caches.open(names.pages);
   const network = fetch(request).then((response) => {
     if (SwCore.isStorable(response)) {
       event.waitUntil(cache.put(request, response.clone()));
+    } else if (SwCore.isSignedOut(response)) {
+      event.waitUntil(forgetPages());
     }
     return response;
   });
