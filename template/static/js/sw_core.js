@@ -56,5 +56,14 @@
     return !/no-store/i.test(cacheControl);
   }
 
-  self.SwCore = Object.freeze({ cacheNames, isStaleCache, route, isStorable });
+  /**
+   * Whether a page's response says the session that cached it is gone: it
+   * was sent on to sign-in, or refused. Its cached copy must go too, or an
+   * offline visit would still show the old private page.
+   */
+  function isSignedOut(response) {
+    return response.redirected || response.status === 401 || response.status === 403;
+  }
+
+  self.SwCore = Object.freeze({ cacheNames, isStaleCache, route, isStorable, isSignedOut });
 })();

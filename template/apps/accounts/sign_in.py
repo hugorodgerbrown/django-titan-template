@@ -18,7 +18,7 @@ from typing import Any
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import F, Q
 from django.utils import timezone
 from django.utils.crypto import salted_hmac
@@ -69,9 +69,21 @@ def issue(email: str, next_url: str = "") -> tuple[SignInRequest, str, str]:
     email = normalise_email(email)
     token = secrets.token_urlsafe(32)
     code = reviewer_code(email) or f"{secrets.randbelow(10**CODE_DIGITS):0{CODE_DIGITS}d}"
+    # The database allows one unused request per address. Two requests at
+    # once both find nothing to retire; the second to insert collides, and
+    # its retry retires the first, so the newest still wins.
+    try:
+        request = _replace_request(email, token, code, next_url)
+    except IntegrityError:
+        request = _replace_request(email, token, code, next_url)
+    return request, token, code
+
+
+def _replace_request(email: str, token: str, code: str, next_url: str) -> SignInRequest:
+    """Retire ``email``'s unused requests and store a new one, in one transaction."""
     now = timezone.now()
     with transaction.atomic():
-        SignInRequest.objects.for_email(email).live().update(used_at=now)
+        SignInRequest.objects.for_email(email).unused().update(used_at=now)
         request = SignInRequest(
             email_key=email_key(email),
             masked_email=mask_email(email),
@@ -82,7 +94,7 @@ def issue(email: str, next_url: str = "") -> tuple[SignInRequest, str, str]:
         )
         request.code_hash = _hash_code(str(request.uuid), code)
         request.save()
-    return request, token, code
+    return request
 
 
 def _claim(request: SignInRequest) -> bool:
