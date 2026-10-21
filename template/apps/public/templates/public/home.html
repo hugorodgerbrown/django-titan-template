@@ -49,7 +49,7 @@
   </ul>
 
   {% if mcp_url %}
-    {# 5. From your AI chat. Who may connect is apps/mcp/policy.py: widen it before launch, or take this section out. #}
+    {# 5. From your AI chat. Who may connect is MCP_AUTH["CAN_CONNECT"] in config/settings.py (any active account by default); take this section out if the app has no /mcp. #}
     <section class="card stack" id="mcp" aria-labelledby="mcp-title">
       <p class="eyebrow">Or just ask</p>
       <h2 id="mcp-title">Use it from your AI chat</h2>
