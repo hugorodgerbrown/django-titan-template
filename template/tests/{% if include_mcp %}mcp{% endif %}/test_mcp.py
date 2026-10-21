@@ -20,12 +20,12 @@ class TestMCPAuth(MCPAuthContract):
     mcp_path = "/mcp"
 
     def make_allowed_user(self, django_user_model: Any) -> Any:
-        """A user who may connect: staff and superuser satisfy either policy."""
+        """A user who may connect: an active staff superuser satisfies every policy."""
         return UserFactory.create(is_staff=True, is_superuser=True)
 
     def make_refused_user(self, django_user_model: Any) -> Any:
-        """A signed-in user who may not connect."""
-        return UserFactory.create()
+        """A user who may not connect: an inactive account fails every policy."""
+        return UserFactory.create(is_active=False)
 
 
 @pytest.fixture
