@@ -69,11 +69,13 @@ mcp_auth_version:
 mcp_can_connect:
   type: str
   help: Who may connect an MCP client?
-  # Widening to every account is a product decision; edit apps/mcp/policy.py.
+  # Titan apps are open to every account over MCP. Narrowing it is a
+  # product decision, made in a PR that says so.
   choices:
+    Any active account: mcp_auth.policy.active_user
     Staff only: apps.mcp.policy.staff_only
     Superusers only: mcp_auth.policy.superuser_only
-  default: apps.mcp.policy.staff_only
+  default: mcp_auth.policy.active_user
   when: "{{ include_mcp }}"
 
 render_region:

@@ -40,6 +40,6 @@ What is on by default, and what checks it.
    `@login_required_json`.
 5. A sign-in secret (link token, code) is never stored or logged as given.
 {%- if include_mcp %}
-6. Widening who may connect an MCP client (`apps/mcp/policy.py`) is a
-   product decision, made in a PR that says so.
+6. Changing who may connect an MCP client (`MCP_AUTH["CAN_CONNECT"]` in
+   `config/settings.py`) is a product decision, made in a PR that says so.
 {%- endif %}

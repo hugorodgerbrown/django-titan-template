@@ -74,7 +74,7 @@ no contact address on any page yet.
 | Decision | Default | Where |
 | --- | --- | --- |
 | Serve `/mcp`? | yes | copier `include_mcp` |
-| Who may connect | staff only; widen to active accounts for launch | `apps/mcp/policy.py`, in a PR that says so |
+| Who may connect | any active account | copier `mcp_can_connect`; changes later in a PR that says so |
 | Keep email addresses? | no: a key and a masked address | `ACCOUNTS_KEEP_EMAIL` in settings; can be switched later, accounts convert at next sign-in |
 | Scheduled jobs | the daily purge | `render.yaml` (leave the cron out if there are none) |
 | Render region | frankfurt | copier `render_region` |
@@ -196,7 +196,7 @@ titan golive <slug>
 
 Skip if the app has no `/mcp`.
 
-- [ ] **Decide who may connect.** The template defaults to staff only. A public launch widens `MCP_AUTH["CAN_CONNECT"]` (`apps/mcp/policy.py`) to active accounts, in a PR that says so (invariant 7)
+- [ ] **Check who may connect.** Titan apps let any active account connect (`MCP_AUTH["CAN_CONNECT"]` is `mcp_auth.policy.active_user`). Narrowing it is a product decision, in a PR that says so (invariant 7)
 - [ ] mcp-auth is at the template's pin (computed, so `copier update` moves it). v0.1.2 lets Claude connect; v0.1.3 lets ChatGPT connect
 - [ ] **Claude:** Customize → Connectors → Add custom connector, `https://<slug>.ultraniche.ai/mcp`, OAuth fields empty. Reaches the consent page, connects, and a tool answers
 - [ ] **ChatGPT:** follow Help's *Use it from Claude or ChatGPT* steps (developer mode, then Apps → Create, OAuth). Reaches consent and a tool answers
