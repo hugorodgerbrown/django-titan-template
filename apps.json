@@ -17,6 +17,14 @@
       "updates": true
     },
     {
+      "slug": "split-flap",
+      "name": "Riffle",
+      "repo": "hugorodgerbrown/split-flap",
+      "domain": "riffle.ultraniche.ai",
+      "stage": "live",
+      "updates": true
+    },
+    {
       "slug": "tally",
       "name": "Tally",
       "repo": "hugorodgerbrown/tally",
@@ -25,11 +33,11 @@
       "updates": true
     },
     {
-      "slug": "titan-shift",
-      "name": "Shift",
-      "repo": "hugorodgerbrown/titan-shift",
-      "domain": "titan-shift.ultraniche.ai",
-      "stage": "new",
+      "slug": "traintracker",
+      "name": "Traintrackr",
+      "repo": "hugorodgerbrown/traintracker",
+      "domain": "traintrackr.live",
+      "stage": "live",
       "updates": true
     }
   ]
