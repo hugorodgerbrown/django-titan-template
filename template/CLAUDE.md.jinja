@@ -11,7 +11,9 @@ config/          settings (one module, env-driven), urls, wsgi/asgi
 apps/core/       BaseModel, IdempotencyMiddleware + IdempotencyRecord,
                  PrivatePagesMiddleware (signed-in pages never cached),
                  decorators (require_htmx, login_required_json), rate
-                 limits, safe_next, livez and healthz; analytics.py puts
+                 limits, safe_next, livez and healthz; errors.py is the
+                 error pages (400/403/404/500, CSRF), as JSON, text or
+                 HTML (DESIGN.md, "Error pages"); analytics.py puts
                  fivebar's tag on every page while FIVEBAR_DOMAIN is set,
                  and marks events (a sign-up) for static/js/analytics.js
 apps/accounts/   sign-in by emailed link or code (SignInRequest), passkeys
@@ -32,7 +34,8 @@ apps/mcp/        the MCP endpoint (/mcp) and its tools; auth is mcp-auth.
                  events.py counts each tool call in fivebar as a server
                  event while FIVEBAR_DOMAIN and FIVEBAR_TOKEN are set
 {%- endif %}
-templates/       base.html (the app, /app/), public_base.html, includes
+templates/       base.html (the app, /app/), public_base.html, includes,
+                 errors/ (the error card, its site and standalone pages)
 static/js/       plain JavaScript, classic scripts, no build step
 static/css/      app.css: the design system's tokens on :root, components
                  below (DESIGN.md)

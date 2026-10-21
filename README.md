@@ -93,6 +93,7 @@ A launch is one edit to its `apps.json`.
 | PWA | Scoped to `/app/`: manifest, icons, `/app/sw.js` (precached shell, network-first pages with a 4 s fallback, offline page), launch screen |
 | Accounts | Sign-up and sign-in by emailed link or code (single use, hashed, rate-limited), passkeys added from the account page, email sent from a task |
 | Public pages | Placeholder homepage, terms and privacy notice, outside the app's scope |
+| Error pages | 400, 403, 404, 500 and CSRF failure as one card on the site's frame, with 400 and 500 drawn without the request or database; JSON for MCP and API clients, plain text for htmx; staff preview at `/app/design/errors/<kind>/` |
 | Offline writes | IndexedDB outbox with backoff, Background Sync where available, per-user rows; `IdempotencyMiddleware` so a retried write is applied once |
 | Example | A notes app that proves an offline write end to end |
 | MCP (optional) | `/mcp` JSON-RPC endpoint with notes tools, plus the privacy notice, terms and help as Markdown, and an MCP App (`list_notes` drawn as a card in Claude), authenticated by mcp-auth, passing its contract suite |
