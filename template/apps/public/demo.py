@@ -53,7 +53,7 @@ HERO_CHAT = [
 
 # A job told in a chat: ask, the tools, the answer, and what changed.
 LIST_CHAT = [
-    Turn("you", "Turn today's notes into a to-do list and save it."),
+    Turn("you", "Turn my latest notes into a to-do list and save it."),
     Turn("step", "list_notes"),
     Turn("step", "add_note"),
     Turn("reply", "Saved: To do: call the plumber about Thursday, buy milk, eggs and bread."),
