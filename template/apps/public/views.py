@@ -9,10 +9,10 @@ from typing import Any
 
 from django.conf import settings
 from django.http import HttpRequest, HttpResponse
-from django.shortcuts import render
 from django.utils import timezone
 from django.views.decorators.http import require_GET
 
+from apps.core.shortcuts import render
 from apps.public.connector import mcp_url
 
 # The notes the front page draws with the app's own note list (DESIGN.md,
