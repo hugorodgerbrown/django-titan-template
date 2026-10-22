@@ -6,9 +6,9 @@ never caches them and they never show inside the installed app.
 
 from django.conf import settings
 from django.http import HttpRequest, HttpResponse
-from django.shortcuts import render
 from django.views.decorators.http import require_GET
 
+from apps.core.shortcuts import render
 from apps.public import demo
 from apps.public.connector import mcp_url
 
