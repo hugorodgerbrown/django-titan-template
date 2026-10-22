@@ -72,6 +72,14 @@ def test_counted_path() -> None:
     assert counted_path(factory.get("/nowhere/")) == ""
 
 
+def test_counted_path_without_a_resolved_route() -> None:
+    """An error before resolution looks the route up; an unmatched address keeps one segment."""
+    factory = RequestFactory()
+    assert counted_path(factory.get("/signin/link/abc/")) == "/signin/link/:token/"
+    assert counted_path(factory.get("/signin/")) == ""
+    assert counted_path(factory.get("/signin/link/abc/extra")) == "/signin/:unmatched/"
+
+
 def test_context_has_no_path_while_off(settings: Any) -> None:
     """Off, the context names nothing, so the tag isn't drawn."""
     settings.FIVEBAR_DOMAIN = ""

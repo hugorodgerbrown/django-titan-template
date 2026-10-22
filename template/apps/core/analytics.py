@@ -24,6 +24,7 @@ import re
 from typing import TYPE_CHECKING, Any
 
 from django.conf import settings
+from django.urls import Resolver404, resolve
 
 if TYPE_CHECKING:
     # Only for annotations: config/settings.py imports this module.
@@ -63,9 +64,21 @@ def counted_path(request: HttpRequest) -> str:
     ``/signin/link/abc123/`` is counted as ``/signin/link/:token/``. A page
     whose route takes no values is counted under its own path, so this is
     empty and the tag carries no ``data-path``.
+
+    An error raised before the URL was resolved (a 500 in middleware, a
+    ``DisallowedHost`` 400) has no ``resolver_match``, so the route is
+    looked up here. An address no route matches (only ever a 404) keeps its
+    first segment alone, ``/signin/:unmatched/``: a mangled sign-in link
+    still holds its token, and no route is there to name it.
     """
     match = request.resolver_match
-    if match is None or not (match.kwargs or match.args):
+    if match is None:
+        try:
+            match = resolve(request.path_info, getattr(request, "urlconf", None))
+        except Resolver404:
+            first, _, rest = request.path_info.strip("/").partition("/")
+            return f"/{first}/:unmatched/" if rest else ""
+    if not (match.kwargs or match.args):
         return ""
     return "/" + _CONVERTER.sub(r":\1", match.route)
 
