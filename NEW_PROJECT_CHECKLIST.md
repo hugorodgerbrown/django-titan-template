@@ -85,7 +85,7 @@ no contact address on any page yet.
 | Value | Source |
 | --- | --- |
 | Short description | the one-line description |
-| Long description | the front page's lede and "how it works" tiles |
+| Long description | the front page's lede and its job rows (DESIGN.md §12) |
 | Three to five example prompts | the front page's "Try asking" list |
 | Screenshots | the live product (the front page's demo, the board in Claude) |
 | Category | pick per directory |

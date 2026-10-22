@@ -4,40 +4,27 @@ They sit outside the installed app's /app/ scope, so the service worker
 never caches them and they never show inside the installed app.
 """
 
-from datetime import timedelta
-from typing import Any
-
 from django.conf import settings
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
-from django.utils import timezone
 from django.views.decorators.http import require_GET
 
+from apps.public import demo
 from apps.public.connector import mcp_url
-
-# The notes the front page draws with the app's own note list (DESIGN.md,
-# "The front page": the product, live, with demo data). Minutes before now,
-# so the demo never looks stale. Replace with the product's own.
-DEMO_NOTES = [
-    ("Call the plumber back about Thursday", 12),
-    ("Milk, eggs, the good bread", 95),
-    ("Book Saturday's table for six", 60 * 26),
-]
-
-
-def demo_notes() -> list[dict[str, Any]]:
-    """Return the front page's demo notes, shaped like the notes it lists."""
-    now = timezone.now()
-    return [
-        {"text": text, "written_at": now - timedelta(minutes=minutes)}
-        for text, minutes in DEMO_NOTES
-    ]
 
 
 @require_GET
 def home(request: HttpRequest) -> HttpResponse:
-    """The front page: the promise, the product, the connector and the way in."""
-    return render(request, "public/home.html", {"notes": demo_notes(), "mcp_url": mcp_url()})
+    """The front page: the promise kept, the jobs, the connector and the way in."""
+    context = {
+        "notes": demo.demo_notes(),
+        "pending_note": demo.PENDING_NOTE,
+        "hero_chat": demo.HERO_CHAT,
+        "list_chat": demo.LIST_CHAT,
+        "mcp_url": mcp_url(),
+        "keeps_email": settings.ACCOUNTS_KEEP_EMAIL,
+    }
+    return render(request, "public/home.html", context)
 
 
 @require_GET
