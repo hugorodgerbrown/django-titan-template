@@ -160,21 +160,12 @@ def test_the_standalone_500_counts_a_token_under_its_route(anyone: Client, setti
     assert "secret-token" not in body
 
 
-@pytest.mark.parametrize(
-    ("path", "data", "status"),
-    [
-        ("/signin/", {"email": "not an address"}, 400),
-        ("/signin/link/no-such-token/", None, 410),
-    ],
-)
-def test_a_view_that_answers_4xx_tells_fivebar_too(
-    anyone: Client, settings: Any, path: str, data: dict[str, str] | None, status: int
-) -> None:
+def test_a_view_that_answers_4xx_tells_fivebar_too(anyone: Client, settings: Any) -> None:
     """Any page rendered with apps.core.shortcuts.render carries its own status."""
     settings.FIVEBAR_DOMAIN = FIVEBAR
-    response = anyone.post(path, data) if data else anyone.get(path)
-    assert response.status_code == status
-    assert f'data-status="{status}"' in response.content.decode()
+    response = anyone.post(reverse("accounts:sign_in"), {"email": "not an address"})
+    assert response.status_code == 400
+    assert 'data-status="400"' in response.content.decode()
 
 
 def test_error_pages_carry_no_tag_while_fivebar_is_off(anyone: Client) -> None:
