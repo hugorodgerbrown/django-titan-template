@@ -143,12 +143,11 @@ def test_every_error_page_tells_fivebar_its_status(
     assert f'data-status="{status}"' in body
 
 
-def test_the_csrf_page_tells_fivebar_its_403(settings: Any, user: Any) -> None:
+def test_the_csrf_page_tells_fivebar_its_403(settings: Any) -> None:
     """The CSRF failure is a 403 like any other."""
     settings.FIVEBAR_DOMAIN = FIVEBAR
     client = Client(enforce_csrf_checks=True)
-    client.force_login(user)
-    body = client.post(reverse("notes:create"), {"text": "Hello"}).content.decode()
+    body = client.post(reverse("accounts:sign_in"), {"email": "a@example.com"}).content.decode()
     assert 'data-status="403"' in body
 
 
