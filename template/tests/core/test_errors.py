@@ -177,6 +177,16 @@ def test_an_unmatched_404_keeps_a_mangled_token_out(anyone: Client, settings: An
     assert "secret-token" not in body
 
 
+def test_an_unmatched_404_never_sends_an_unknown_first_segment(
+    anyone: Client, settings: Any
+) -> None:
+    """A token that lost its prefix leads the address, so it is counted as ``/:unmatched/``."""
+    settings.FIVEBAR_DOMAIN = FIVEBAR
+    body = anyone.get("/secret-token/").content.decode()
+    assert 'data-path="/:unmatched/"' in body
+    assert "secret-token" not in body
+
+
 def test_a_disallowed_host_on_a_token_route_keeps_the_token_out(
     anyone: Client, settings: Any
 ) -> None:

@@ -69,10 +69,11 @@ give one the attribute wins.
   Before this, fivebar never saw a server error.
 - An error raised before the URL was resolved has no `resolver_match`, so
   `counted_path` resolves the route itself. An address no route matches
-  (a 404) is counted under its first segment, `/signin/:unmatched/`: a
-  mangled sign-in link still holds its token. The cost is that fivebar's
-  Errors page shows `/signin/:unmatched/` rather than the exact missing
-  address (RAS-95).
+  (a 404) is counted as `/signin/:unmatched/` when a route begins with its
+  first segment, else as `/:unmatched/`: a mangled sign-in link still
+  holds its token, and one that lost its prefix leads with it. The cost is
+  that fivebar's Errors page shows `/signin/:unmatched/` rather than the
+  exact missing address (RAS-95).
 
 ## MCP tool calls (2026-10-16, RAS-53)
 
