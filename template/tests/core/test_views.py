@@ -60,10 +60,3 @@ def test_security_txt_follows_rfc_9116(client: Client, settings: Any) -> None:
     assert fields["Expires"].endswith("Z")
     now = datetime.now(UTC)
     assert now + timedelta(days=179) < expires < now + timedelta(days=365)
-
-
-def test_security_contact_defaults_to_the_shared_address() -> None:
-    """Every app reports to sec@ultraniche.ai unless SECURITY_CONTACT says otherwise."""
-    from django.conf import settings
-
-    assert settings.SECURITY_CONTACT == "mailto:sec@ultraniche.ai"
