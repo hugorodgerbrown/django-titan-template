@@ -7,9 +7,9 @@
     <h1>{{ pwa.name }}</h1>
     <p class="hero__lead">{{ pwa.description }}</p>
     {% if user.is_authenticated %}
-      <a class="button" href="{% url 'notes:list' %}">Open the app</a>
+      <a class="button button--block" href="{% url 'notes:list' %}">Open the app</a>
     {% else %}
-      <a class="button" href="{% url 'accounts:sign_in' %}?next={% url 'notes:list' %}">Get started</a>
+      <a class="button button--block" href="{% url 'accounts:sign_in' %}?next={% url 'notes:list' %}">Get started</a>
       <p class="hero__note">Free. Sign in with your email, no password.</p>
     {% endif %}
   </section>

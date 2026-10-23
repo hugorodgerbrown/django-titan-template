@@ -177,9 +177,10 @@ under `/app/`) carries on without it.
 The front page (`public/home.html`) is the app's own: the template ships a
 plain placeholder, and each app writes the page its product needs. What
 follows is a suggestion, not a rule: a structure that has worked across the
-Titan apps, to borrow from, reorder or leave out. The parts it names
-(`showcase`, `jobs`, `scene`, `chat`, `keep`, `asks`, `copy-field`,
-`closing`) are on the design page, ready to use.
+Titan apps, to borrow from, reorder or leave out. The template ships only
+the parts every public page shares (`hero`, `eyebrow`, `copy-field`,
+`prose`); an app that builds more adds them to its own `app.css` and design
+page, as any component (§2, §3).
 
 It shows what an app can do as short stories, each a job someone wants
 done, drawn on the screen where it happens, rather than as a list of
@@ -189,15 +190,15 @@ features. From top to bottom:
 | --- | --- | --- |
 | 1 | Header | The icon and name, linking home (§9), and one link on the right: **Sign in**, or **Open the app** when signed in. |
 | 2 | Proposition | An eyebrow if it helps, then an H1 that is the promise rather than the app's name (the header already says that). One sentence of lede, then one primary action named for the first job ("Start a group", not "Create an account"), with a note under it that removes the doubt ("Free. Sign in with your email, no password."). |
-| 3 | The promise kept | The app's own component, drawn by the real CSS with demo data (`showcase`). With MCP, one chat turn about the same demo rows beside it (`showcase--paired`). A one-line caption saying how to read it. |
-| 4 | Jobs | Two to four rows (`jobs`, `job`), each a designed scene in a frame, an H2 naming the outcome, one sentence, and where it happens. |
+| 3 | The promise kept | The app's own component, drawn by the real CSS with demo data. With MCP, one chat turn about the same demo rows beside it. A one-line caption saying how to read it. |
+| 4 | Jobs | Two to four rows, each a designed scene in a frame, an H2 naming the outcome, one sentence, and where it happens. |
 | 5 | Connect | With MCP: what stays private, a few things to try asking, the `/mcp` address with a copy button, and a link to the steps on the help page. |
-| 6 | What we keep, or facts | What we keep (`keep`), the mechanism drawn and true to `ACCOUNTS_KEEP_EMAIL`; or three true numbers, each removing a doubt ("0 passwords"). |
+| 6 | What we keep, or facts | What we keep, the mechanism drawn and true to `ACCOUNTS_KEEP_EMAIL`; or three true numbers, each removing a doubt ("0 passwords"). |
 | 7 | Closing action | The promise in other words, and the same primary action again. |
 | 8 | Footer | §8. Any data credit a source asks for sits above the copyright. |
 
-A page with a side-by-side hero can use `app-main--wide` (64rem); its text
-keeps the 40rem reading width.
+A page with a side-by-side hero can be wider than the app, as long as its
+text keeps the 40rem reading width.
 
 ### If it shows the product
 
@@ -205,12 +206,11 @@ keeps the 40rem reading width.
   and doesn't work in dark mode. The app's own component drawn by its real
   CSS with demo data changes when the app changes. Demo data rather than
   live data: a live feed can be empty (no trains at 3am) or wrong.
-- **Designed scenes** (`scene--phone`, `scene--chat`, `scene--browser`) can
-  be idealised but never untrue: a tool a chat names is a real MCP tool,
-  and an outcome is one the app can produce. A chat reads ask
-  (`chat__you`), tool steps (`chat__step`), answer (`chat__reply`), and
-  what changed (`chat__done`) when a tool wrote something. Frames are
-  generic: no other company's logo, colours or window chrome.
+- **Designed scenes** (a phone, an AI chat, a browser) can be idealised
+  but never untrue: a tool a chat names is a real MCP tool, and an outcome
+  is one the app can produce. A chat reads ask, tool steps, answer, and
+  what changed when a tool wrote something. Frames are generic: no other
+  company's logo, colours or window chrome.
 - **One cast of demo data**, specific and plausible ("12 minutes ago",
   "Book Saturday's table for six"), shared by the product, the scenes and
   the share card, never "Item 1" or "Example".
