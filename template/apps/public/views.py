@@ -9,22 +9,13 @@ from django.http import HttpRequest, HttpResponse
 from django.views.decorators.http import require_GET
 
 from apps.core.shortcuts import render
-from apps.public import demo
 from apps.public.connector import mcp_url
 
 
 @require_GET
 def home(request: HttpRequest) -> HttpResponse:
-    """The front page: the promise kept, the jobs, the connector and the way in."""
-    context = {
-        "notes": demo.demo_notes(),
-        "pending_note": demo.PENDING_NOTE,
-        "hero_chat": demo.HERO_CHAT,
-        "list_chat": demo.LIST_CHAT,
-        "mcp_url": mcp_url(),
-        "keeps_email": settings.ACCOUNTS_KEEP_EMAIL,
-    }
-    return render(request, "public/home.html", context)
+    """The front page (placeholder): what the app is, and the way in."""
+    return render(request, "public/home.html", {"mcp_url": mcp_url()})
 
 
 @require_GET
