@@ -175,30 +175,69 @@ under `/app/`) carries on without it.
 ## 12. The front page
 
 Every Titan app's front page (`public/home.html`) has the same anatomy, so
-a visitor who has seen one knows where to look on the next. Gondola's is
-the model. From top to bottom:
+a visitor who has seen one knows where to look on the next. It shows what
+the app can do as short stories, each a job someone wants done, drawn on the
+screen where it happens, rather than as a list of features. The template's
+own front page is the worked example. From top to bottom:
 
 | # | Section | | What it holds |
 | --- | --- | --- | --- |
 | 1 | Header | required | The icon and name, linking home (§9), and one link on the right: **Sign in**, or **Open the app** when signed in. No avatar and no menu: the account page is inside the app, and the other pages are in the footer. |
 | 2 | Proposition | required | An eyebrow if it helps, then the H1, which is the promise, not the app's name (the header already says that). One sentence of lede, then **one** primary action named for the first job ("Start a group", not "Create an account"). Under it, a note that removes the doubt ("Free. Sign in with your email, no password."). |
-| 3 | The product, live | required | The app's own component, drawn by the real CSS with demo data, and a one-line caption saying how to read it. |
-| 4 | How it works | optional | Three tiles, each an icon, a verb and one line. |
-| 5 | From your AI chat | required with MCP | An eyebrow and H2, then a short sample chat (ask, answer, act) and "Try asking" with three or four prompts. Then the `/mcp` address with a copy button, a link to the steps on the help page, and what stays private, said plainly. |
-| 6 | Facts | optional | Three true numbers, each removing a doubt ("0 passwords"). |
+| 3 | The promise kept | required | The app's own component, drawn by the real CSS with demo data (`showcase`). With MCP, beside it (under it on a phone), one chat turn about the same demo rows, with its tool step (`showcase--paired`). A one-line caption saying how to read it. The demo shows the thing the H1 promises. |
+| 4 | Jobs | required | Two to four rows (`jobs`, `job`). Each is a designed scene in one of the three frames, an H2 naming the outcome, one sentence, and where it happens. Rows swap sides on wide screens and stack on a phone. One job may be told in a chat. |
+| 5 | Connect | required with MCP | An eyebrow and H2, what stays private said plainly, "Try asking" with three or four prompts, the `/mcp` address with a copy button, and a link to the steps on the help page. No sample chat here: the chats are in sections 3 and 4. |
+| 6 | What we keep, or facts | optional | What we keep (`keep`): the mechanism drawn, following `ACCOUNTS_KEEP_EMAIL` as the privacy notice does, with a link to it. Or three true numbers, each removing a doubt ("0 passwords"). |
 | 7 | Closing action | required | The promise in other words, and the same primary action again, for whoever scrolled to the end. |
 | 8 | Footer | required | §8. Any data credit a source asks for sits above the copyright. |
 
-The rules behind it:
+The page is wider than the app (`app-main--wide`, 64rem) so the hero and the
+jobs can sit side by side; its text keeps the 40rem reading width.
+
+### Two kinds of demo
+
+- **The product**, in section 3: the app's own component, drawn by its real
+  CSS with demo data. It changes when the app changes. Demo data, not live
+  data: a live feed can be empty (no trains at 3am) or wrong.
+- **Designed scenes**, in section 4: composed in HTML with the design
+  system's tokens to tell one story, the way fiveb.ar's are. A scene can be
+  idealised (the right numbers, the right moment, nothing on screen that
+  doesn't serve it) but never untrue: every tool it names is a real MCP
+  tool, and every outcome is one the app can produce. A test checks the
+  scenes' tool names against `TOOLS` (`tests/mcp/test_demo.py`).
+- **Never a picture.** Neither kind is a screenshot or an image: a picture
+  goes stale, blurs on a phone and doesn't work in dark mode.
+
+### Scenes
+
+- **Three frames, no more** (`scene`): `scene--phone` (the installed app),
+  `scene--chat` (an AI chat) and `scene--browser` (the app on a laptop).
+  Frames are generic: no other company's logo, colours or window chrome. The
+  job's tag line names the place in words ("In Claude or ChatGPT").
+- **A chat shows its working and ends in an action.** Ask (`chat__you`),
+  then each tool the AI called (`chat__step`: the tool's real name and the
+  app's), the answer (`chat__reply`), and when a tool wrote something, what
+  changed (`chat__done`). A done chip only follows a tool that isn't
+  read-only. The turns live in `apps/public/demo.py` and draw through
+  `public/_chat.html`.
+- **One cast of demo data.** The product, every scene and the share card use
+  the same people, places and dates, from `apps/public/demo.py`: a visitor
+  who meets Thursday's plumber in the hero meets him again in the chat.
+  Specific and plausible ("12 minutes ago", "Book Saturday's table for
+  six"), never "Item 1", "Example" or round numbers.
+- **Job copy is short.** The H2 names the outcome in the customer's words,
+  six words or fewer ("Write it with no signal", not "Offline support"). One
+  sentence of 25 words or fewer. Then where it happens (`job__where`).
+- **Without MCP**, the hero shows the product alone and no job is told in a
+  chat.
+
+### The rules behind it
 
 - **One way in.** Signing in creates the account, so there is no separate
   sign-up button. The primary action goes to sign in with `?next=` set to
   the first job's page; "Sign in" lives in the header only.
 - **Signed in, the page changes its offer, not its shape.** The header link
   and both primary actions become **Open the app**.
-- **Show the product, never a picture of it.** Demo data, not live data: a
-  live feed can be empty (no trains at 3am) or wrong, and a screenshot
-  goes stale, blurs on a phone and doesn't work in dark mode.
 - **The connector steps live on the help page**, in the "Use it from
   Claude or ChatGPT" section (`#use-with-ai`) that every Titan app shares.
   The front page links there and to nothing else for setup; the footer
