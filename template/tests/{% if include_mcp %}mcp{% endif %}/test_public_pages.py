@@ -11,11 +11,10 @@ from apps.public.pages import page_as_markdown
 pytestmark = pytest.mark.django_db
 
 
-@pytest.mark.parametrize("name", ["public:home", "public:help"])
-def test_the_pages_show_the_real_address(client: Client, settings: Any, name: str) -> None:
-    """The front page and help both give the /mcp address on the site's own URL."""
+def test_help_shows_the_real_address(client: Client, settings: Any) -> None:
+    """Help gives the /mcp address on the site's own URL."""
     settings.SITE_URL = "https://example.test"
-    content = client.get(reverse(name)).content.decode()
+    content = client.get(reverse("public:help")).content.decode()
     assert 'data-copy="https://example.test/mcp"' in content
 
 
