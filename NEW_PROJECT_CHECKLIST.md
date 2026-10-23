@@ -21,7 +21,7 @@ flowchart LR
 | --- | --- | --- | --- |
 | 0 Plan | Claude, Hugo signs off | Linear, Titan team | The project and first issue exist, scope agreed |
 | 1 Generate | Hugo's machine | `titan new` | Private repo on GitHub, app in `apps.json` |
-| 2 Build | Claude | the app's repo | `uv run tox` green, front page follows DESIGN.md §12 |
+| 2 Build | Claude | the app's repo | `uv run tox` green, the app's own front page in place of the placeholder |
 | 3 Deploy | Hugo's machine | `titan deploy`, one Render click | `/healthz` green on `onrender.com` |
 | 4 Go live | Hugo | Squarespace DNS, `titan golive` | Site on its domain, fivebar counting |
 | 5 Connect | Hugo | claude.ai, chatgpt.com | Both clients sign in and call a tool |
@@ -85,7 +85,7 @@ no contact address on any page yet.
 | Value | Source |
 | --- | --- |
 | Short description | the one-line description |
-| Long description | the front page's lede and its job rows (DESIGN.md §12) |
+| Long description | the front page's lede and what the app is for |
 | Three to five example prompts | the front page's "Try asking" list |
 | Screenshots | the live product (the front page's demo, the board in Claude) |
 | Category | pick per directory |
@@ -139,7 +139,7 @@ ones that bit us:
 
 - [ ] **Every branch starts with `copier update --trust`** as its own first commit, then `uv run tox`. Skip the commit if nothing changed; never an empty commit
 - [ ] **Accounts keep a key, not the address.** Leave `ACCOUNTS_KEEP_EMAIL` off unless the app must email people after sign-in (digests, alerts). It can be switched later: each account converts at its next sign-in. What can't change is `ACCOUNTS_EMAIL_KEY` (phase 3)
-- [ ] **Front page in the shared shape** (DESIGN.md §12): the promise as H1, one primary action named for the first job, the product drawn live with demo data (not a screenshot), the AI-chat section with the `/mcp` address and a link to Help's *Use it from Claude or ChatGPT*, the closing action, the footer with ©
+- [ ] **The app's own front page** in place of the template's placeholder. DESIGN.md §12 suggests a structure (the promise as H1, one way in, the product drawn with demo data, the `/mcp` address with a link to Help's *Use it from Claude or ChatGPT*); the page is the app's call
 - [ ] **Share card:** replace the placeholder `static/img/share-card.png` with a 1200×630 card, the promise beside the product. No `og:url` tag (a sign-in link's address is its token)
 - [ ] **Header:** the mark goes home; one link on the right, *Sign in* or *Open the app*. No passkey prompt until *Sign in with a passkey* is pressed
 - [ ] **Design page** at `/app/design/` shows every new component and state; tokens only (`tests/test_design.py` fails a raw colour or an undeclared `var()`)

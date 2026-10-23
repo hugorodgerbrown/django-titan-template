@@ -39,14 +39,12 @@
   --space-lg: 16px;
   --space-2xl: 24px;
   --space-3xl: 32px;
-  --space-4xl: 48px;
 
   /* Shape. */
   --radius-control: 8px;
   --radius-card: 12px;
   --radius-round: 50%;
   --radius-icon: 22%;
-  --radius-device: 28px;
 
   color-scheme: light dark;
 }
@@ -107,11 +105,6 @@ a { color: var(--brand); }
 .app-header__link { color: inherit; font-weight: 600; text-decoration: none; }
 .app-main { max-width: 40rem; margin: 0 auto; padding: var(--space-lg); }
 .app-main > * + * { margin-top: var(--space-lg); }
-/* The front page is wider, so the promise kept and the jobs sit side by side; its text keeps the reading width. */
-.app-main--wide { max-width: 64rem; }
-.app-main--wide > * { max-width: 40rem; margin-inline: auto; }
-.app-main--wide > .showcase--paired, .app-main--wide > .jobs { max-width: none; }
-
 /* The website's footer (DESIGN.md): links and copyright. */
 .site-footer {
   display: flex;
@@ -133,7 +126,7 @@ a { color: var(--brand); }
 .site-links li + li { border-top: 1px solid var(--border); }
 .site-links a { min-height: 44px; display: flex; align-items: center; color: var(--text-1); }
 
-/* The front page (DESIGN.md, "The front page"), top to bottom. */
+/* The public pages: an eyebrow, and the hero at the top of the front page. */
 
 .eyebrow {
   margin: 0;
@@ -151,92 +144,6 @@ a { color: var(--brand); }
 .hero__lead { font-size: var(--type-lg); color: var(--text-2); margin: 0; }
 .hero__note { margin-top: var(--space-sm); color: var(--text-2); font-size: var(--type-sm); text-align: center; }
 
-/* The promise kept: the app's own component with demo data, in a frame; with MCP, one chat turn on the same data beside it. */
-.showcase { margin: 0 auto var(--space-lg); }
-.showcase__screen {
-  overflow: hidden;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card);
-  padding: 0 var(--space-lg);
-}
-.showcase__bar {
-  margin: 0 calc(-1 * var(--space-lg));
-  padding: var(--space-sm) var(--space-lg);
-  background: var(--brand);
-  color: var(--brand-text);
-  font-weight: 600;
-}
-.showcase__chat { margin-top: var(--space-md); overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-card); }
-.showcase__caption { margin-top: var(--space-sm); color: var(--text-2); font-size: var(--type-sm); }
-@media (min-width: 48rem) {
-  .showcase--paired { display: grid; grid-template-columns: minmax(0, 6fr) minmax(0, 5fr); column-gap: var(--space-lg); align-items: start; }
-  .showcase--paired .showcase__chat { margin-top: 0; }
-  .showcase--paired .showcase__caption { grid-column: 1 / -1; }
-}
-
-/* Jobs: an outcome per row, its designed scene beside it; rows swap sides on wide screens, one under another on a phone. */
-.jobs { list-style: none; margin: 0; padding: var(--space-2xl) 0; display: flex; flex-direction: column; gap: var(--space-4xl); }
-.job { display: grid; gap: var(--space-lg); align-items: center; }
-.job__copy { display: flex; flex-direction: column; gap: var(--space-xs); }
-.job__title { font-size: var(--type-xl); }
-.job__text { margin: 0; color: var(--text-2); font-size: var(--type-lg); }
-.job__where { margin: 0; color: var(--brand); font-size: var(--type-sm); font-weight: 600; }
-@media (min-width: 48rem) {
-  .job { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-3xl); }
-  .job:nth-child(even) .job__scene { order: 2; }
-}
-
-/* A designed scene's frame: phone, chat or browser. Generic on purpose: no other company's logo or look. */
-.scene { overflow: hidden; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-card); }
-.scene__bar {
-  margin: 0;
-  padding: var(--space-sm) var(--space-lg);
-  border-bottom: 1px solid var(--border);
-  color: var(--text-2);
-  font-size: var(--type-sm);
-  font-weight: 600;
-}
-.scene__body { padding: 0 var(--space-lg); }
-.scene--phone { width: 100%; max-width: 20rem; margin-inline: auto; border: var(--space-sm) solid var(--text-2); border-radius: var(--radius-device); }
-.scene--phone .scene__bar { border-bottom: 0; background: var(--brand); color: var(--brand-text); }
-.scene--chat .scene__body { padding: 0; }
-.scene--chat .chat { border-radius: 0; }
-.scene--browser .scene__bar { background: var(--bg); }
-.scene__address {
-  display: block;
-  padding: var(--space-2xs) var(--space-md);
-  border-radius: var(--radius-control);
-  background: var(--card);
-  font-weight: 400;
-  overflow-wrap: anywhere;
-}
-
-/* A chat scene: what the person asks, the tool steps the AI took, its answer and what it changed. */
-.chat {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
-  padding: var(--space-md);
-  border-radius: var(--radius-control);
-  background: var(--bg);
-  font-size: var(--type-sm);
-}
-.chat__you, .chat__reply { max-width: 85%; margin: 0; padding: var(--space-sm) var(--space-md); border-radius: var(--radius-card); }
-.chat__you { align-self: flex-end; background: var(--text-1); color: var(--card); }
-.chat__reply { background: var(--card); border: 1px solid var(--border); }
-.chat__step, .chat__done { align-self: flex-start; margin: 0; padding: var(--space-2xs) var(--space-sm); border-radius: var(--radius-control); }
-.chat__step { border: 1px dashed var(--border); color: var(--text-2); }
-.chat__step code { color: var(--text-1); }
-.chat__done { box-shadow: inset 0 0 0 1px var(--brand); color: var(--brand); font-weight: 600; }
-.chat__done::before { content: "\2713\00a0"; }
-
-/* Things to ask: quoted, not chips, since nothing here is tapped. */
-.asks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-xs); }
-.asks li { padding-left: var(--space-md); border-left: 2px solid var(--brand); }
-.asks li::before { content: "\201C"; }
-.asks li::after { content: "\201D"; }
-
 /* An address to copy, and its button (js/copy.js shows it). */
 .copy-field { display: flex; align-items: center; gap: var(--space-sm); }
 .copy-field__value {
@@ -248,18 +155,6 @@ a { color: var(--brand); }
   font-size: var(--type-sm);
   overflow-wrap: anywhere;
 }
-
-/* What we keep: the mechanism drawn, not an adjective. */
-.keep { margin: 0; display: flex; flex-direction: column; gap: var(--space-sm); }
-.keep__flow { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-sm); }
-.keep__chip { padding: var(--space-2xs) var(--space-sm); border: 1px solid var(--border); border-radius: var(--radius-control); background: var(--card); font-size: var(--type-sm); }
-.keep__chip--kept { border-color: var(--brand); }
-.keep__chip--gone { border-style: dashed; background: transparent; color: var(--text-2); text-decoration: line-through; }
-.keep__arrow { color: var(--text-2); }
-
-/* The closing action: the promise again, and the same way in. */
-.closing { padding: var(--space-2xl) 0; text-align: center; }
-.closing h2 { font-size: var(--type-2xl); }
 
 .prose { max-width: 40rem; }
 .prose h2 { margin-top: var(--space-2xl); }

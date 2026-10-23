@@ -1,130 +1,22 @@
 {% extends "public_base.html" %}
-{% load static %}
-{# The front page, in the shape every Titan app shares (DESIGN.md, "The front page"). The words and scenes are placeholders: replace them with the product's own, keeping the sections. The demo data is apps/public/demo.py. #}
-{% block title %}{{ pwa.name }}: write it down, even in a tunnel{% endblock %}
-{% block description %}Notes that save on your phone first and send themselves when you're back online.{% endblock %}
-{% block share_title %}Write it down, even in a tunnel.{% endblock %}
-{% block share_description %}Notes that save on your phone first and send themselves when you're back online.{% endblock %}
-{% block extra_js %}<script src="{% static 'js/copy.js' %}" defer></script>{% endblock %}
-{% block main_class %} app-main--wide{% endblock %}
+{# A placeholder front page: replace it with the app's own. DESIGN.md, "The front page", suggests a structure and the design page has the parts. #}
+{% block title %}{{ pwa.name }}{% endblock %}
+{% block description %}{{ pwa.description }}{% endblock %}
 {% block content %}
-  {# 2. Proposition: the promise, and one way in, named for the first job. #}
   <section class="hero stack">
-    <p class="eyebrow">Notes for when the signal drops</p>
-    <h1>Write it down, even in a tunnel.</h1>
-    <p class="hero__lead">Notes that save on your phone first and send themselves when you're back online.</p>
+    <h1>{{ pwa.name }}</h1>
+    <p class="hero__lead">{{ pwa.description }}</p>
     {% if user.is_authenticated %}
       <a class="button button--block" href="{% url 'notes:list' %}">Open the app</a>
     {% else %}
-      <a class="button button--block" href="{% url 'accounts:sign_in' %}?next={% url 'notes:list' %}">Write a note</a>
+      <a class="button button--block" href="{% url 'accounts:sign_in' %}?next={% url 'notes:list' %}">Get started</a>
       <p class="hero__note">Free. Sign in with your email, no password.</p>
     {% endif %}
   </section>
-
-  {# 3. The promise kept: the app's own note list, drawn with demo notes, and with MCP one chat turn about the same notes. #}
-  <figure class="showcase{% if mcp_url %} showcase--paired{% endif %}">
-    <div class="showcase__screen" inert>
-      <p class="showcase__bar">{{ pwa.name }}</p>
-      {% include "notes/_note_items.html" %}
-    </div>
-    {% if mcp_url %}
-      <div class="showcase__chat" inert>{% include "public/_chat.html" with turns=hero_chat %}</div>
-    {% endif %}
-    <figcaption class="showcase__caption">Your notes, newest first{% if mcp_url %}, and the same notes from your AI chat{% endif %}.</figcaption>
-  </figure>
-
-  {# 4. Jobs: two to four outcomes, each a designed scene in a frame (phone, chat or browser), a title, one sentence and where it happens. #}
-  <ol class="jobs" aria-label="What it's for">
-    <li class="job">
-      <div class="job__scene scene scene--phone" inert>
-        <p class="scene__bar">{{ pwa.name }}</p>
-        <div class="scene__body">
-          <ul class="note-list">
-            <li class="note note--pending"><p class="note__text">{{ pending_note }}</p><p class="note__meta">Waiting to send</p></li>
-          </ul>
-          {% include "notes/_note_items.html" %}
-        </div>
-      </div>
-      <div class="job__copy">
-        <h2 class="job__title">Write it with no signal</h2>
-        <p class="job__text">It saves on your phone and sends itself the moment you're back online.</p>
-        <p class="job__where">On your phone, offline</p>
-      </div>
-    </li>
-    {% if mcp_url %}
-      <li class="job">
-        <div class="job__scene scene scene--chat" inert>
-          <p class="scene__bar">Your AI chat</p>
-          <div class="scene__body">{% include "public/_chat.html" with turns=list_chat %}</div>
-        </div>
-        <div class="job__copy">
-          <h2 class="job__title">Turn your notes into a to-do list</h2>
-          <p class="job__text">Ask in plain words: it reads your notes and saves the list back to them.</p>
-          <p class="job__where">In Claude or ChatGPT</p>
-        </div>
-      </li>
-    {% endif %}
-    <li class="job">
-      <div class="job__scene scene scene--browser" inert>
-        <p class="scene__bar"><span class="scene__address">{{ request.get_host }}{% url 'notes:list' %}</span></p>
-        <div class="scene__body">{% include "notes/_note_items.html" %}</div>
-      </div>
-      <div class="job__copy">
-        <h2 class="job__title">The same notes on your laptop</h2>
-        <p class="job__text">Open it in any browser, sign in with the same email, and every note is there.</p>
-        <p class="job__where">In any browser</p>
-      </div>
-    </li>
-  </ol>
-
   {% if mcp_url %}
-    {# 5. Connect: the address, the steps' link and what stays private. Who may connect is MCP_AUTH["CAN_CONNECT"] in config/settings.py (any active account by default); take this section out if the app has no /mcp. #}
-    <section class="card stack" id="mcp" aria-labelledby="mcp-title">
-      <p class="eyebrow">From your AI chat</p>
-      <h2 id="mcp-title">Connect it to Claude or ChatGPT</h2>
-      <p>Ask in plain words. It reads and writes your notes, and only yours, once you sign in.</p>
-      <p class="eyebrow">Try asking</p>
-      <ul class="asks">
-        <li>What did I write down last week?</li>
-        <li>Note that the meeting moved to 3pm</li>
-        <li>Turn my notes from today into a to-do list</li>
-      </ul>
-      <p class="meta">Add this address as a connector, then sign in:</p>
-      <p class="copy-field">
-        <code class="copy-field__value" id="mcp-url">{{ mcp_url }}</code>
-        <button class="button button--secondary" type="button" data-copy="{{ mcp_url }}" data-copy-target="mcp-url" data-copied-label="Copied" hidden>Copy</button>
-      </p>
-      <p><a href="{% url 'public:help' %}#use-with-ai">How to add it to Claude or ChatGPT</a></p>
+    <section class="card stack" id="mcp">
+      <h2>Use it from Claude or ChatGPT</h2>
+      <p><a href="{% url 'public:help' %}#use-with-ai">How to add it as a connector</a></p>
     </section>
   {% endif %}
-
-  {# 6. What we keep (optional): the mechanism drawn, not an adjective. It follows ACCOUNTS_KEEP_EMAIL, as the privacy notice does. #}
-  <section class="stack" aria-labelledby="keep-title">
-    <h2 id="keep-title">What we keep about you</h2>
-    <figure class="keep">
-      <ol class="keep__flow" aria-label="What happens to your email address">
-        <li class="keep__chip">anna@example.com</li>
-        <li class="keep__arrow" aria-hidden="true">→</li>
-        <li class="keep__chip keep__chip--kept">{% if keeps_email %}The address{% else %}A one-way key made from it{% endif %}</li>
-        <li class="keep__chip keep__chip--kept">a•••@example.com</li>
-      </ol>
-      <ul class="keep__flow" aria-label="Never kept">
-        <li class="meta">Never kept:</li>
-        {% if not keeps_email %}<li class="keep__chip keep__chip--gone">Your address</li>{% endif %}
-        <li class="keep__chip keep__chip--gone">A password</li>
-        <li class="keep__chip keep__chip--gone">A readable sign-in code</li>
-      </ul>
-      <figcaption class="meta">{% if keeps_email %}We keep your address to find your account and to email you.{% else %}Your address becomes a key that finds your account; the address itself is discarded once the sign-in email is sent.{% endif %} Sign-in codes are kept only as a hash, until they expire. <a href="{% url 'public:privacy' %}">The privacy notice</a> has the rest.</figcaption>
-    </figure>
-  </section>
-
-  {# 7. Closing action: the promise again, and the same way in. #}
-  <section class="closing stack">
-    <h2>Never lose the thought.</h2>
-    {% if user.is_authenticated %}
-      <a class="button button--block" href="{% url 'notes:list' %}">Open the app</a>
-    {% else %}
-      <a class="button button--block" href="{% url 'accounts:sign_in' %}?next={% url 'notes:list' %}">Write a note</a>
-    {% endif %}
-  </section>
 {% endblock %}
