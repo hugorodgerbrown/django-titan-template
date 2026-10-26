@@ -128,13 +128,15 @@ def test_create_user_refuses_a_second_account_for_an_address() -> None:
         User.objects.create_user("walker", "walker@example.com")
 
 
-def test_createsuperuser_promotes_the_account_sign_in_made() -> None:
+@pytest.mark.parametrize("keep", [False, True])
+def test_createsuperuser_promotes_the_account_sign_in_made(settings: Any, keep: bool) -> None:
     """Running createsuperuser after signing in makes that account staff, not a second one."""
+    settings.ACCOUNTS_KEEP_EMAIL = keep
     member = sign_in.user_for(sign_in.issue("boss@example.com")[0])
     assert member is not None
     call_command(
         "createsuperuser",
-        username="boss@example.com",
+        username="admin",
         email="Boss@example.com",
         interactive=False,
         verbosity=0,
@@ -149,7 +151,7 @@ def test_createsuperuser_before_sign_in_is_the_account_sign_in_finds() -> None:
     """A superuser made first is keyed at once, and signing in reaches it."""
     call_command(
         "createsuperuser",
-        username="boss@example.com",
+        username="admin",
         email="boss@example.com",
         interactive=False,
         verbosity=0,
