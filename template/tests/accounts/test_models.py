@@ -131,6 +131,7 @@ def test_create_user_refuses_a_second_account_for_an_address() -> None:
 def test_createsuperuser_promotes_the_account_sign_in_made() -> None:
     """Running createsuperuser after signing in makes that account staff, not a second one."""
     member = sign_in.user_for(sign_in.issue("boss@example.com")[0])
+    assert member is not None
     call_command(
         "createsuperuser",
         username="boss@example.com",

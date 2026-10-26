@@ -101,7 +101,8 @@ class AccountManager(UserManager.from_queryset(UserQuerySet)):  # type: ignore[m
             username = username_for(email)
             extra_fields.setdefault("masked_email", mask_email(email))
             email = kept_email(email)
-        return super()._create_user_object(username, email, password, **extra_fields)
+        user: User = super()._create_user_object(username, email, password, **extra_fields)
+        return user
 
     def create_superuser(
         self,
@@ -116,9 +117,10 @@ class AccountManager(UserManager.from_queryset(UserQuerySet)):  # type: ignore[m
         one account, now staff, rather than getting a second that sign-in
         never reaches.
         """
-        user = self.for_email(email).first() if email else None
+        user: User | None = self.for_email(email).first() if email else None
         if user is None:
-            return super().create_superuser(username, email, password, **extra_fields)
+            made: User = super().create_superuser(username, email, password, **extra_fields)
+            return made
         user.is_staff = user.is_superuser = True
         user.save(update_fields=["is_staff", "is_superuser"])
         logger.info("accounts.promoted user=%s", user.pk)
