@@ -73,7 +73,8 @@ anything that has to reach all of them, such as the routine that runs
 
 titan keeps it: `titan new` adds the app at stage `new` (and adds an app
 made before the register when run on its existing repo), and `titan golive`
-moves it to `live`. Each is a commit to `main` here. `updates` starts
+moves it to `live`. Each is a pull request here that titan opens and
+squash-merges itself (`main` takes nothing else). `updates` starts
 `true` and titan never changes it; set it to `false` in a PR to stop
 update PRs for one app, for example during a rewrite. Only apps made with
 copier belong in it: an app with no `.copier-answers.yml` has nothing for

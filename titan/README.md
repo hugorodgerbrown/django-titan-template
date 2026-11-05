@@ -32,9 +32,14 @@ the site at [fiveb.ar/sites](https://fiveb.ar/sites) as a step to do by
 hand. Until the site is on fivebar, nothing is counted.
 
 `new` and `golive` also record the app in the register of Titan apps,
-[apps.json](../apps.json) in this repo (a commit to `main` through `gh`):
-`new` at stage `new`, `golive` at `live`. Run `titan new <slug>` on an app
-whose repo already exists to add an app made before the register.
+[apps.json](../apps.json) in this repo: `new` at stage `new`, `golive` at
+`live`. `main` only takes squash-merged pull requests, so titan writes the
+entry on its own branch (`titan/register-<slug>-<stage>`), opens a pull
+request and merges it through `gh`. If the merge is refused, the pull
+request stays open and the step gives its link; running again merges it
+rather than opening another. Run `titan new <slug>` on an app whose repo
+already exists to add an app made before the register, or to finish a `new`
+that stopped after pushing the repo.
 
 Every command reads the accounts first, shows the whole plan, and asks
 before changing anything. `--commit` applies without asking and `--plan`

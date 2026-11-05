@@ -2,8 +2,9 @@
 
 One entry per app made from the template, so anything that has to reach
 every app (the routine that runs ``copier update`` in each) reads one file
-rather than guessing from GitHub. titan writes it: ``new`` adds the app at
-stage ``new``, and ``golive`` moves it to ``live``. Nobody has to keep it
+rather than guessing from GitHub. titan writes it, through a pull request it
+merges itself (titan.plans): ``new`` adds the app at stage ``new``, and
+``golive`` moves it to ``live``. Nobody has to keep it
 by hand, though anyone can edit it in a PR.
 
 titan owns ``slug``, ``repo``, ``domain`` and ``stage``. ``name`` is set

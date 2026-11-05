@@ -176,29 +176,59 @@ def plan_new(ctx: Context) -> Plan:
 
 
 def _register(ctx: Context, plan: Plan, stage: str) -> None:
-    """Record the app in the register of Titan apps at this stage, unless it already is."""
+    """Record the app in the register of Titan apps at this stage, unless it already is.
+
+    The register's repo only takes changes to its default branch through a
+    squash-merged pull request, so the entry is written on its own branch,
+    ``titan/register-<slug>-<stage>``, and titan opens and merges a pull
+    request for it. Each part is safe to run again: an open pull request for
+    the same app and stage is merged rather than opened twice, and a branch
+    left without one is moved back to the default branch first. If the merge
+    is refused, the pull request stays open for a person to merge.
+    """
     app, github = ctx.app, ctx.github
     text, _ = github.read_file(register.REPO, register.PATH)
-    where = f"{register.PATH} in {register.REPO}"
+    where = register_at = f"{register.PATH} in {register.REPO}"
     if register.is_current(register.parse(text), app, stage):
         entry = register.find(register.parse(text), app.slug) or {}
         plan.add(f"In the register of Titan apps as {entry.get('stage', stage)}", where)
         return
+    branch = f"titan/register-{app.slug}-{stage}"
+    waiting = github.find_pull(register.REPO, branch)
+    if waiting:
+        where = f"{where}, pull request #{waiting['number']}"
+    verb = "Add" if register.find(register.parse(text), app.slug) is None else "Update"
+    title = f"{verb} {app.slug} in the register of Titan apps ({stage})"
 
-    def write(_: Progress) -> None:
-        # Read again: the sha must be the one being replaced, or GitHub refuses.
-        text, sha = github.read_file(register.REPO, register.PATH)
-        apps = register.record(register.parse(text), app, stage)
-        verb = "Add" if register.find(register.parse(text), app.slug) is None else "Update"
-        github.write_file(
-            register.REPO,
-            register.PATH,
-            register.render(apps),
-            sha,
-            f"{verb} {app.slug} in the register of Titan apps ({stage})",
-        )
+    def write(progress: Progress) -> None:
+        pull = github.find_pull(register.REPO, branch)
+        if pull is None:
+            progress(f"writing {register.PATH} on {branch}")
+            base = github.start_branch(register.REPO, branch)
+            # Read the branch's copy: its sha is the one being replaced.
+            current, sha = github.read_file(register.REPO, register.PATH, ref=branch)
+            apps = register.record(register.parse(current), app, stage)
+            github.write_file(
+                register.REPO, register.PATH, register.render(apps), sha, title, branch
+            )
+            body = (
+                f"titan {'golive' if stage == 'live' else 'new'} records {app.name} "
+                f"at stage `{stage}` in the register of Titan apps. titan merges this "
+                "itself; it is open only if that merge was refused."
+            )
+            pull = github.open_pull(register.REPO, branch, base, title, body)
+        number, url = pull["number"], pull.get("html_url", "")
+        progress(f"merging pull request #{number}")
+        refused = github.merge_pull(register.REPO, number, title, branch)
+        if refused:
+            step.detail = f"Pull request #{number} is open for you to merge: {url} ({refused})"
+        else:
+            step.detail = f"{register_at}, through pull request #{number}"
 
-    plan.add(f"Record {app.slug} in the register of Titan apps as {stage}", where, run=write)
+    action = "Merge the pull request recording" if waiting else "Record"
+    step = plan.add(
+        f"{action} {app.slug} in the register of Titan apps as {stage}", where, run=write
+    )
 
 
 # ---------------------------------------------------------------- deploy

@@ -234,7 +234,9 @@ class FakeGitHub:
     """The repo exists unless told otherwise; render.yaml declares the cron job.
 
     Files are kept per (repo, path) with a sha that changes on every write;
-    the register starts empty.
+    the register starts empty. Writes go to a branch, and only a merged pull
+    request reaches the default branch's files, as the template repo's rules
+    require.
     """
 
     def __init__(
@@ -253,22 +255,60 @@ class FakeGitHub:
         self.commits: list[str] = []
         # Whether the app repos carry the template's copier answers.
         self.copier = copier
+        # Branches other than the default one, each a copy of the files.
+        self.branches: dict[str, dict[tuple[str, str], tuple[str, str]]] = {}
+        self.started: list[str] = []
+        self.pulls: list[dict[str, Any]] = []
+        self.merged: list[str] = []
+        # Why a merge is refused; empty merges.
+        self.refuse_merge = ""
         if register:
             self.files[("hugorodgerbrown/django-titan-template", "apps.json")] = (register, "sha0")
 
-    def read_file(self, repo: str, path: str) -> tuple[str, str | None]:
-        """The file and its sha, or ("", None)."""
+    def read_file(self, repo: str, path: str, ref: str = "") -> tuple[str, str | None]:
+        """The file and its sha on a branch (the default one unless `ref`), or ("", None)."""
         if path == ".copier-answers.yml" and self.copier and (repo, path) not in self.files:
             return "_src_path: gh:hugorodgerbrown/django-titan-template\n", "answers"
-        text, sha = self.files.get((repo, path), ("", None))
+        files = self.branches.get(ref, {}) if ref else self.files
+        text, sha = files.get((repo, path), ("", None))
         return text, sha
 
-    def write_file(self, repo: str, path: str, text: str, sha: str | None, message: str) -> None:
-        """Commit, refusing a stale sha the way GitHub does."""
-        if self.files.get((repo, path), ("", None))[1] != sha:
+    def write_file(
+        self, repo: str, path: str, text: str, sha: str | None, message: str, branch: str
+    ) -> None:
+        """Commit to a branch, refusing a stale sha the way GitHub does."""
+        files = self.branches[branch]
+        if files.get((repo, path), ("", None))[1] != sha:
             raise TitanError(f"{path} changed since it was read")
-        self.files[(repo, path)] = (text, f"sha{len(self.commits) + 1}")
+        files[(repo, path)] = (text, f"sha{len(self.commits) + 1}")
         self.commits.append(message)
+
+    def start_branch(self, repo: str, branch: str) -> str:
+        """Point the branch at the default branch's files."""
+        self.started.append(branch)
+        self.branches[branch] = dict(self.files)
+        return "main"
+
+    def find_pull(self, repo: str, branch: str) -> dict[str, Any] | None:
+        """The open pull request from the branch."""
+        return next((p for p in self.pulls if p["head"] == branch and p["open"]), None)
+
+    def open_pull(self, repo: str, branch: str, base: str, title: str, body: str) -> dict[str, Any]:
+        """Open one; numbers start at 100."""
+        pull = {"number": 100 + len(self.pulls), "head": branch, "title": title, "open": True}
+        pull["html_url"] = f"https://github.com/{repo}/pull/{pull['number']}"
+        self.pulls.append(pull)
+        return pull
+
+    def merge_pull(self, repo: str, number: int, title: str, branch: str) -> str:
+        """Squash the branch onto the default one, unless told to refuse."""
+        if self.refuse_merge:
+            return self.refuse_merge
+        pull = next(p for p in self.pulls if p["number"] == number)
+        pull["open"] = False
+        self.files.update(self.branches.pop(branch))
+        self.merged.append(f"{title} (#{number})")
+        return ""
 
     def register(self) -> list[dict[str, Any]]:
         """The register's entries as written."""
