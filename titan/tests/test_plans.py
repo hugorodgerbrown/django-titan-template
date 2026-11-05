@@ -75,6 +75,75 @@ def test_new_records_the_app_in_the_register(make_ctx: Any) -> None:
         }
     ]
     assert github.commits == ["Add tally in the register of Titan apps (new)"]
+    # Through a pull request from its own branch, squash-merged: main takes no push.
+    assert github.started == ["titan/register-tally-new"]
+    assert github.merged == ["Add tally in the register of Titan apps (new) (#100)"]
+    assert github.branches == {}
+
+
+def test_new_leaves_a_refused_register_pull_request_open(make_ctx: Any) -> None:
+    """A merge the rules refuse is not a failure: the step names the open pull request."""
+    github = FakeGitHub(exists=False)
+    github.refuse_merge = "Review required (HTTP 405)"
+    plan = plan_new(make_ctx(github=github))
+    view = run(plan)
+    assert view.titles("failed") == []
+    assert github.register() == []
+    step = plan.steps[-1]
+    assert step.detail == (
+        "Pull request #100 is open for you to merge: "
+        "https://github.com/hugorodgerbrown/django-titan-template/pull/100 "
+        "(Review required (HTTP 405))"
+    )
+
+
+def test_new_run_again_merges_the_open_register_pull_request(make_ctx: Any) -> None:
+    """A second run after a refused merge reuses the pull request rather than opening another."""
+    github = FakeGitHub()
+    github.refuse_merge = "Review required (HTTP 405)"
+    run(plan_new(make_ctx(github=github)))
+    github.refuse_merge = ""
+    plan = plan_new(make_ctx(github=github))
+    step = plan.steps[-1]
+    assert (
+        step.title == "Merge the pull request recording tally in the register of Titan apps as new"
+    )
+    assert step.detail.endswith("pull request #100")
+    run(plan)
+    assert len(github.pulls) == 1
+    assert github.started == ["titan/register-tally-new"]
+    assert [e["slug"] for e in github.register()] == ["tally"]
+
+
+def test_new_resets_a_register_branch_left_without_a_pull_request(make_ctx: Any) -> None:
+    """A run that stopped after making its branch leaves no trace in the next one's commit."""
+    github = FakeGitHub(register=TALLY_NEW.replace('"tally"', '"atlas"'))
+    github.branches["titan/register-tally-new"] = {
+        ("hugorodgerbrown/django-titan-template", "apps.json"): ("stale", "sha-stale")
+    }
+    run(plan_new(make_ctx(github=github)))
+    assert [e["slug"] for e in github.register()] == ["atlas", "tally"]
+
+
+def test_new_after_a_failed_register_step_only_registers(
+    make_ctx: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Generated and pushed, then the register failed: running again does only the register."""
+    github = FakeGitHub(exists=False)
+
+    def refused(*_: Any) -> None:
+        raise TitanError("Could not open a pull request")
+
+    monkeypatch.setattr(github, "open_pull", refused)
+    with pytest.raises(TitanError):
+        run(plan_new(make_ctx(github=github)))
+    assert (len(github.generated), len(github.published), github.register()) == (1, 1, [])
+    monkeypatch.undo()
+    plan = plan_new(make_ctx(github=github))
+    assert plan.changes == 1
+    run(plan)
+    assert (len(github.generated), len(github.published), len(github.pulls)) == (1, 1, 1)
+    assert [e["slug"] for e in github.register()] == ["tally"]
 
 
 def test_new_on_an_existing_repo_registers_an_app_made_before_the_register(
@@ -405,6 +474,7 @@ def test_golive_marks_the_app_live_and_keeps_hand_edits(make_ctx: Any) -> None:
     assert atlas["slug"] == "atlas"
     assert (tally["stage"], tally["name"], tally["updates"]) == ("live", "Tally Workouts", False)
     assert github.commits == ["Update tally in the register of Titan apps (live)"]
+    assert github.started == ["titan/register-tally-live"]
 
 
 def test_golive_on_a_registered_live_app_leaves_the_register(make_ctx: Any) -> None:

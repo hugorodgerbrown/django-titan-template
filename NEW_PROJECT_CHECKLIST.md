@@ -128,7 +128,7 @@ titan new <slug> --name "<Name>" --description "<one line>"
     --data theme_colour='#1F3FD8' \
     --data include_mcp=true --data render_region=frankfurt
   ```
-- [ ] Check the new repo is private on GitHub and the app is in [apps.json](apps.json) at stage `new`
+- [ ] Check the new repo is private on GitHub and the app is in [apps.json](apps.json) at stage `new`. titan adds it through a pull request it merges itself; if titan says the pull request is open, merge it
 - [ ] Add the repo to the Claude project and to the weekly copier routine's repositories. The routine can only reach repos in its settings, so an app in `apps.json` but not there is silently skipped
 - [ ] Add the repo to the Titan Linear project's links
 

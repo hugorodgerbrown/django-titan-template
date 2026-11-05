@@ -401,7 +401,7 @@ def test_read_file_treats_not_found_as_empty(monkeypatch: pytest.MonkeyPatch) ->
     assert GitHub(run).read_file("o/t", "apps.json") == ("", None)
 
 
-def test_write_file_puts_the_content_with_the_sha_it_replaces() -> None:
+def test_write_file_commits_to_a_branch_with_the_sha_it_replaces() -> None:
     """The commit carries the old sha, so a file changed meanwhile is refused."""
     sent: list[dict[str, str]] = []
 
@@ -409,9 +409,130 @@ def test_write_file_puts_the_content_with_the_sha_it_replaces() -> None:
         sent.append(json.loads(input))
         return subprocess.CompletedProcess(args, 0, stdout="{}", stderr="")
 
-    GitHub(run).write_file("o/t", "apps.json", "x\n", "abc", "Add tally")
-    assert sent == [{"message": "Add tally", "content": "eAo=", "sha": "abc"}]
-    GitHub(run).write_file("o/t", "apps.json", "x\n", None, "Add tally")
+    GitHub(run).write_file("o/t", "apps.json", "x\n", "abc", "Add tally", "titan/b")
+    assert sent == [{"message": "Add tally", "content": "eAo=", "branch": "titan/b", "sha": "abc"}]
+    GitHub(run).write_file("o/t", "apps.json", "x\n", None, "Add tally", "titan/b")
     assert "sha" not in sent[1]
     with pytest.raises(TitanError, match="may have changed"):
-        GitHub(Recorder(code=1)).write_file("o/t", "apps.json", "x\n", "abc", "m")
+        GitHub(Recorder(code=1)).write_file("o/t", "apps.json", "x\n", "abc", "m", "titan/b")
+
+
+def test_read_file_reads_another_branch(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A ref is passed as a query, escaped."""
+    monkeypatch.setattr("titan.providers.shutil.which", lambda name: f"/bin/{name}")
+    content = base64.b64encode(b"{}").decode()
+    run = Recorder(stdout=json.dumps({"content": content, "sha": "abc"}))
+    GitHub(run).read_file("o/t", "apps.json", ref="titan/register-x-new")
+    assert run.calls[0][0][-1] == "repos/o/t/contents/apps.json?ref=titan%2Fregister-x-new"
+
+
+class Api:
+    """A `gh api` stand-in answering by (method, path), recording each call and body."""
+
+    def __init__(self, answers: dict[tuple[str, str], tuple[int, Any]]) -> None:
+        """Unlisted calls succeed with {}."""
+        self.answers = answers
+        self.calls: list[tuple[str, str, Any]] = []
+
+    def __call__(self, args: list[str], input: str = "", **_: Any) -> Any:
+        """Record and answer."""
+        method = args[args.index("-X") + 1] if "-X" in args else "GET"
+        path = args[args.index("-X") + 2] if "-X" in args else args[2]
+        self.calls.append((method, path, json.loads(input) if input else None))
+        code, body = self.answers.get((method, path), (0, {}))
+        stdout = json.dumps(body) if code == 0 else ""
+        stderr = "" if code == 0 else str(body)
+        return subprocess.CompletedProcess(args, code, stdout=stdout, stderr=stderr)
+
+
+REPO_ANSWERS: dict[tuple[str, str], tuple[int, Any]] = {
+    ("GET", "repos/o/t"): (0, {"default_branch": "main"}),
+    ("GET", "repos/o/t/git/ref/heads/main"): (0, {"object": {"sha": "head"}}),
+}
+
+
+def test_start_branch_makes_the_branch_at_the_default_head(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A new branch is made where the default branch is now."""
+    monkeypatch.setattr("titan.providers.shutil.which", lambda name: f"/bin/{name}")
+    api = Api(dict(REPO_ANSWERS))
+    assert GitHub(api).start_branch("o/t", "titan/b") == "main"
+    assert api.calls[-1] == (
+        "POST",
+        "repos/o/t/git/refs",
+        {"ref": "refs/heads/titan/b", "sha": "head"},
+    )
+
+
+def test_start_branch_moves_a_branch_left_by_an_earlier_run(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The branch already exists: it is forced back to the default head."""
+    monkeypatch.setattr("titan.providers.shutil.which", lambda name: f"/bin/{name}")
+    answers = dict(REPO_ANSWERS)
+    answers[("POST", "repos/o/t/git/refs")] = (1, "Reference already exists (HTTP 422)")
+    api = Api(answers)
+    GitHub(api).start_branch("o/t", "titan/b")
+    assert api.calls[-1] == (
+        "PATCH",
+        "repos/o/t/git/refs/heads/titan/b",
+        {"sha": "head", "force": True},
+    )
+    answers[("PATCH", "repos/o/t/git/refs/heads/titan/b")] = (1, "Forbidden (HTTP 403)")
+    with pytest.raises(TitanError, match="Could not make the branch titan/b"):
+        GitHub(Api(answers)).start_branch("o/t", "titan/b")
+
+
+def test_start_branch_names_an_unreadable_repo(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A repo gh cannot read is an error saying which."""
+    monkeypatch.setattr("titan.providers.shutil.which", lambda name: f"/bin/{name}")
+    api = Api({("GET", "repos/o/t"): (1, "Not Found (HTTP 404)")})
+    with pytest.raises(TitanError, match="find the default branch of o/t"):
+        GitHub(api).start_branch("o/t", "titan/b")
+
+
+def test_find_pull_looks_for_an_open_one_from_the_branch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Only open pull requests from this owner's branch count."""
+    monkeypatch.setattr("titan.providers.shutil.which", lambda name: f"/bin/{name}")
+    path = "repos/o/t/pulls?head=o%3Atitan%2Fb&state=open"
+    api = Api({("GET", path): (0, [{"number": 7}])})
+    assert GitHub(api).find_pull("o/t", "titan/b") == {"number": 7}
+    api.answers[("GET", path)] = (0, [])
+    assert GitHub(api).find_pull("o/t", "titan/b") is None
+
+
+def test_open_pull_posts_it_and_names_a_failure() -> None:
+    """The pull request goes from the branch into the base."""
+    api = Api({("POST", "repos/o/t/pulls"): (0, {"number": 7, "html_url": "u"})})
+    assert GitHub(api).open_pull("o/t", "titan/b", "main", "Add x", "Body") == {
+        "number": 7,
+        "html_url": "u",
+    }
+    assert api.calls[0][2] == {"title": "Add x", "head": "titan/b", "base": "main", "body": "Body"}
+    api.answers[("POST", "repos/o/t/pulls")] = (1, "Validation Failed (HTTP 422)")
+    with pytest.raises(TitanError, match="Could not open a pull request in o/t"):
+        GitHub(api).open_pull("o/t", "titan/b", "main", "Add x", "Body")
+
+
+def test_merge_pull_squashes_and_deletes_the_branch() -> None:
+    """A merge is a squash with the PR number in its title, then the branch goes."""
+    api = Api({})
+    assert GitHub(api).merge_pull("o/t", 7, "Add x", "titan/b") == ""
+    assert api.calls == [
+        (
+            "PUT",
+            "repos/o/t/pulls/7/merge",
+            {"merge_method": "squash", "commit_title": "Add x (#7)"},
+        ),
+        ("DELETE", "repos/o/t/git/refs/heads/titan/b", None),
+    ]
+
+
+def test_merge_pull_reports_a_refusal_without_raising() -> None:
+    """Refused (a review is wanted): the reason comes back and the branch stays."""
+    api = Api({("PUT", "repos/o/t/pulls/7/merge"): (1, "Review required (HTTP 405)\nmore")})
+    assert GitHub(api).merge_pull("o/t", 7, "Add x", "titan/b") == "Review required (HTTP 405)"
+    assert [c[0] for c in api.calls] == ["PUT"]

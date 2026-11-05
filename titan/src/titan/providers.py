@@ -446,11 +446,15 @@ class GitHub:
             target,
         )
 
-    def read_file(self, repo: str, path: str) -> tuple[str, str | None]:
-        """A file on the repo's default branch and its blob sha; ("", None) if it isn't there."""
+    def read_file(self, repo: str, path: str, ref: str = "") -> tuple[str, str | None]:
+        """A file on a branch (the default one unless `ref`) and its blob sha.
+
+        ("", None) if it isn't there.
+        """
         self._need("gh", "https://cli.github.com, then `gh auth login`")
+        query = f"?ref={urllib.parse.quote(ref, safe='')}" if ref else ""
         result = self.run(
-            ["gh", "api", f"repos/{repo}/contents/{path}"],
+            ["gh", "api", f"repos/{repo}/contents/{path}{query}"],
             capture_output=True,
             text=True,
             check=False,
@@ -462,26 +466,104 @@ class GitHub:
         data = json.loads(result.stdout)
         return base64.b64decode(data["content"]).decode(), str(data["sha"])
 
-    def write_file(self, repo: str, path: str, text: str, sha: str | None, message: str) -> None:
-        """Commit the file to the default branch; fails if it changed since it was read."""
+    def write_file(
+        self, repo: str, path: str, text: str, sha: str | None, message: str, branch: str
+    ) -> None:
+        """Commit the file to a branch; fails if it changed since it was read.
+
+        Never the default branch: its rules want a pull request (open_pull).
+        """
         body: dict[str, str] = {
             "message": message,
             "content": base64.b64encode(text.encode()).decode(),
+            "branch": branch,
         }
         if sha:
             body["sha"] = sha
-        result = self.run(
-            ["gh", "api", "-X", "PUT", f"repos/{repo}/contents/{path}", "--input", "-"],
-            input=json.dumps(body),
-            capture_output=True,
-            text=True,
-            check=False,
-        )
+        result = self._api("PUT", f"repos/{repo}/contents/{path}", body)
         if result.returncode != 0:
             raise TitanError(
                 f"Could not update {path} in {repo} (it may have changed since it was read; "
                 f"run again): {(result.stderr or '').strip()}"
             )
+
+    def start_branch(self, repo: str, branch: str) -> str:
+        """Point `branch` at the default branch's head, making it if need be.
+
+        A branch left by an earlier run that stopped before its pull request
+        is moved back, so the new commit sits on today's default branch.
+        Returns the default branch's name, the pull request's base.
+        """
+        self._need("gh", "https://cli.github.com, then `gh auth login`")
+        base = str(self._json(f"repos/{repo}", "find the default branch of")["default_branch"])
+        head = self._json(f"repos/{repo}/git/ref/heads/{base}", f"read {base} in")
+        sha = str(head["object"]["sha"])
+        ref = {"ref": f"refs/heads/{branch}", "sha": sha}
+        if self._api("POST", f"repos/{repo}/git/refs", ref).returncode != 0:
+            moved = self._api(
+                "PATCH", f"repos/{repo}/git/refs/heads/{branch}", {"sha": sha, "force": True}
+            )
+            if moved.returncode != 0:
+                raise TitanError(
+                    f"Could not make the branch {branch} in {repo}: {(moved.stderr or '').strip()}"
+                )
+        return base
+
+    def find_pull(self, repo: str, branch: str) -> dict[str, Any] | None:
+        """The open pull request from this branch, if there is one."""
+        self._need("gh", "https://cli.github.com, then `gh auth login`")
+        owner = repo.split("/")[0]
+        query = urllib.parse.urlencode({"head": f"{owner}:{branch}", "state": "open"})
+        pulls = self._json(f"repos/{repo}/pulls?{query}", "list the pull requests of")
+        return pulls[0] if pulls else None
+
+    def open_pull(self, repo: str, branch: str, base: str, title: str, body: str) -> dict[str, Any]:
+        """Open a pull request from `branch` into `base`; its number and html_url."""
+        fields = {"title": title, "head": branch, "base": base, "body": body}
+        result = self._api("POST", f"repos/{repo}/pulls", fields)
+        if result.returncode != 0:
+            raise TitanError(
+                f"Could not open a pull request in {repo}: {(result.stderr or '').strip()}"
+            )
+        return dict(json.loads(result.stdout))
+
+    def merge_pull(self, repo: str, number: int, title: str, branch: str) -> str:
+        """Squash-merge the pull request and delete its branch; "" if merged, else why not.
+
+        A refusal (the rules want a review or a check) is not an error: the
+        pull request stays open for a person to merge.
+        """
+        fields = {"merge_method": "squash", "commit_title": f"{title} (#{number})"}
+        result = self._api("PUT", f"repos/{repo}/pulls/{number}/merge", fields)
+        if result.returncode != 0:
+            lines = (result.stderr or result.stdout or "refused").strip().splitlines()
+            return lines[0] if lines else "refused"
+        # Best effort: a branch left behind is reset by the next run anyway.
+        self._api("DELETE", f"repos/{repo}/git/refs/heads/{branch}")
+        return ""
+
+    def _api(
+        self, method: str, path: str, body: dict[str, Any] | None = None
+    ) -> subprocess.CompletedProcess[str]:
+        """One `gh api` call with a JSON body on stdin."""
+        args = ["gh", "api", "-X", method, path]
+        if body is None:
+            return self.run(args, capture_output=True, text=True, check=False)
+        return self.run(
+            [*args, "--input", "-"],
+            input=json.dumps(body),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+    def _json(self, path: str, what: str) -> Any:
+        """GET a path and parse it; TitanError naming what it was for."""
+        result = self._api("GET", path)
+        if result.returncode != 0:
+            repo = "/".join(path.split("/")[1:3])
+            raise TitanError(f"Could not {what} {repo}: {(result.stderr or '').strip()}")
+        return json.loads(result.stdout)
 
     def _steps(self, steps: list[list[str]], target: Path) -> None:
         """Run each command (all but copier inside the checkout); stop at the first failure."""

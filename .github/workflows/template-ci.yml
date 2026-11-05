@@ -6,7 +6,7 @@ name: Template CI
 on:
   push:
     branches: [main]
-    # titan commits apps.json to main when an app is made or goes live;
+    # titan merges a PR changing apps.json when an app is made or goes live;
     # the register changes nothing a generated project contains.
     paths-ignore: ["apps.json"]
   pull_request:
