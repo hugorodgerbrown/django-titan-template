@@ -179,6 +179,8 @@ transaction:
   the app's own records and, with MCP, the OAuth access and refresh tokens
   and grants, so a connected app such as Claude loses access at once;
 - the account's sign-in requests, matched by the address's key;
+- the outbox's stored replies (`IdempotencyRecord`), which can hold what the
+  account wrote, matched by its pk;
 - anything an app's hooks in `ACCOUNTS_DELETE_HOOKS` remove. A hook is a
   dotted path to a callable that takes the user and runs before it goes.
   Use one only for data the cascade can't reach (rows keyed by a hash of

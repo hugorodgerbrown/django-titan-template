@@ -1,15 +1,18 @@
 """Tests for deleting an account: apps.accounts.deletion and its views."""
 
+import datetime as dt
 from typing import Any
 
 import pytest
 from django.contrib.auth import get_user_model
 from django.test import Client
 from django.urls import reverse
+from django.utils import timezone
 
 from apps.accounts import deletion
 from apps.accounts.deletion import delete_account
 from apps.accounts.models import SignInRequest, email_key
+from apps.core.models import IdempotencyRecord
 from tests.factories import PasskeyFactory, SignInRequestFactory, UserFactory
 
 pytestmark = pytest.mark.django_db
@@ -124,3 +127,27 @@ def test_privacy_notice_says_deletion_is_self_serve_and_final(client: Client) ->
     assert "Delete my account" in body
     assert "no backups" in body
     assert "ask for your account" not in body
+
+
+def test_stored_outbox_replies_for_the_account_go() -> None:
+    """Idempotency records hold what the account wrote; its own go, others stay."""
+    user = UserFactory.create()
+    other = UserFactory.create()
+
+    def stored(principal: str, key: str) -> IdempotencyRecord:
+        """Store a reply for ``principal``, as the outbox middleware would."""
+        return IdempotencyRecord.objects.create(
+            key=key,
+            method="POST",
+            path="/app/notes/",
+            principal=principal,
+            body_hash="0" * 64,
+            response_body=b'{"text": "private"}',
+            expires_at=timezone.now() + dt.timedelta(days=1),
+        )
+
+    mine = stored(str(user.pk), "mine")
+    theirs = stored(str(other.pk), "theirs")
+    delete_account(user)
+    assert not IdempotencyRecord.objects.filter(pk=mine.pk).exists()
+    assert IdempotencyRecord.objects.filter(pk=theirs.pk).exists()
