@@ -18,7 +18,8 @@ apps/core/       BaseModel, IdempotencyMiddleware + IdempotencyRecord,
                  fivebar's tag on every page while FIVEBAR_DOMAIN is set,
                  and marks events (a sign-up) for static/js/analytics.js
 apps/accounts/   sign-in by emailed link or code (SignInRequest), passkeys
-                 (Passkey), sign-out, /app/account/ (docs/accounts.md)
+                 (Passkey), sign-out, /app/account/ and deleting the
+                 account from it (deletion.py; docs/accounts.md)
 apps/public/     the public pages: /, /terms/, /privacy/, /help/ (placeholders);
                  each body is one _<name>_body.html, also served as Markdown
 apps/pwa/        /app/manifest.webmanifest, /app/sw.js, /app/offline/;
