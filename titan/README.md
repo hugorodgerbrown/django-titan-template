@@ -66,8 +66,13 @@ Three account-wide keys (and an optional fourth, `FIVEBAR_API_KEY`), looked for 
 
 1. **1Password:** an item named `Titan` (set `TITAN_OP_ITEM` to change it,
    and `TITAN_OP_VAULT` to pick a vault) with one field per key, labelled
-   exactly as below. titan reads it with one `op item get`, so 1Password
-   asks to unlock once.
+   as below (case, spaces and hyphens don't matter: `Render API key` is
+   `RENDER_API_KEY`). titan reads it with one `op item get`, so 1Password
+   asks to unlock once. `op` needs the 1Password app open and unlocked,
+   with Settings > Developer > Integrate with 1Password CLI turned on.
+   If a key still has to be asked for, titan first says why 1Password
+   didn't give it: `op` missing or not connected, no such item, or the
+   field labels it found.
 2. `~/.config/titan/env`: `KEY=value` lines.
 3. A hidden prompt.
 

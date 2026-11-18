@@ -18,7 +18,7 @@ KEYS = {"RENDER_API_KEY": "r", "RESEND_API_KEY": "s", "TITAN_DB_ADMIN_URL": "pos
 def accounts(monkeypatch: pytest.MonkeyPatch, checked: list[str]) -> FakeRender:
     """Point the CLI at fakes, with keys from "1Password"."""
     render = FakeRender()
-    monkeypatch.setattr("titan.credentials.read_1password", lambda item, vault: KEYS)
+    monkeypatch.setattr("titan.credentials.read_1password", lambda item, vault: (KEYS, ""))
     monkeypatch.setattr(cli, "Render", lambda token: render)
     monkeypatch.setattr(cli, "Resend", lambda token: FakeResend())
     monkeypatch.setattr(cli, "SharedDb", lambda url: FakeDb())
@@ -31,10 +31,15 @@ def test_main_reports_errors_and_exits_non_zero(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     """No keys anywhere and no terminal to ask on: a clear error and exit 1."""
-    monkeypatch.setattr("titan.credentials.read_1password", lambda item, vault: {})
+    monkeypatch.setattr(
+        "titan.credentials.read_1password",
+        lambda item, vault: ({}, "`op item get Titan` failed: not signed in"),
+    )
     monkeypatch.setattr("titan.credentials.CONFIG_FILE", Path("/absent"))
     assert cli.main(["status", "tally"]) == 1
-    assert "RENDER_API_KEY" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "RENDER_API_KEY" in out
+    assert "Not from 1Password: `op item get Titan` failed: not signed in." in out
 
 
 def test_no_command_needs_a_terminal(capsys: pytest.CaptureFixture[str]) -> None:

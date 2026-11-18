@@ -21,6 +21,7 @@ import sys
 from pathlib import Path
 
 from rich.console import Console
+from rich.text import Text
 
 from titan import TitanError, __version__, credentials
 from titan.app import SLUG, App
@@ -167,7 +168,10 @@ def main(argv: list[str] | None = None) -> int:
                 raise TitanError(f"{label} is not in 1Password or the config file.")
             return ask.secret(label)
 
-        settings = credentials.load(secret)
+        def warn(message: str) -> None:
+            console.print(Text(message, style="yellow"))
+
+        settings = credentials.load(secret, warn=warn)
         render = Render(settings.render_api_key)
         command: str | None = args.command
         if command is None:
