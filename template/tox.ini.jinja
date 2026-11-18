@@ -85,7 +85,8 @@ commands =
     uv export --frozen --no-dev --no-emit-project --format requirements-txt --quiet --output-file {envtmpdir}/requirements.txt
 {%- endif %}
     pip-audit --disable-pip --requirement {envtmpdir}/requirements.txt
-    npm audit --audit-level=high
+    # npm audit at high, less the advisories bin/npm-audit sets aside.
+    python bin/npm-audit
 
 # Not in the default list: it downloads rule packs from semgrep.dev on every
 # run. CI runs it on every push and weekly.
