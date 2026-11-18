@@ -20,6 +20,13 @@ def test_names_derive_from_the_slug(app: App) -> None:
     assert (app.web_service, app.cron_service, app.group) == ("tally", "tally-purge", "tally")
 
 
+def test_the_registers_repo_wins_over_the_slug(settings: Settings) -> None:
+    """An app whose repo isn't named after its slug keeps every other name."""
+    app = App.from_slug("shift", settings, repo="hugorodgerbrown/titan-shift")
+    assert app.repo_url == "https://github.com/hugorodgerbrown/titan-shift"
+    assert (app.web_service, app.domain) == ("shift", "shift.ultraniche.ai")
+
+
 def test_hyphens_become_underscores_in_postgres(settings: Settings) -> None:
     """Postgres names read better without hyphens."""
     app = App.from_slug("resort-planner", settings)

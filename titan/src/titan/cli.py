@@ -23,7 +23,7 @@ from pathlib import Path
 from rich.console import Console
 from rich.text import Text
 
-from titan import TitanError, __version__, credentials
+from titan import TitanError, __version__, credentials, register
 from titan.app import SLUG, App
 from titan.credentials import Settings
 from titan.plans import Context, plan_deploy, plan_golive, plan_new
@@ -132,6 +132,17 @@ def ask_app_to_deploy(ask: Ask, here: Path) -> str:
     )
 
 
+def registered_repo(github: GitHub, slug: str) -> str:
+    """The app's repo as the register records it; "" if it isn't there yet.
+
+    An app's repo needn't be named after its slug (Shift's is titan-shift),
+    so titan never guesses it for an app the register knows.
+    """
+    text, _ = github.read_file(register.REPO, register.PATH)
+    entry = register.find(register.parse(text), slug)
+    return str(entry["repo"]) if entry else ""
+
+
 def run(plan: Plan, console: Console, commit: bool, confirm: bool, ask: Ask | None) -> None:
     """Show the plan; run it if committed, or if asked and the answer is yes."""
     view = LiveView(console, open_links=console.is_terminal)
@@ -205,13 +216,14 @@ def main(argv: list[str] | None = None) -> int:
             slug = args.app
             if getattr(args, "description", ""):
                 answers["description"] = args.description
-        app = App.from_slug(slug, settings, name)
+        github = GitHub()
+        app = App.from_slug(slug, settings, name, repo=registered_repo(github, slug))
         ctx = Context(
             app=app,
             render=render,
             resend=Resend(settings.resend_api_key),
             db=SharedDb(settings.db_admin_url),
-            github=GitHub(),
+            github=github,
             fivebar=Fivebar(settings.fivebar_api_key) if settings.fivebar_api_key else None,
             owner_id=owner_id,
             workdir=getattr(args, "dir", None) or Path.cwd(),

@@ -41,6 +41,11 @@ rather than opening another. Run `titan new <slug>` on an app whose repo
 already exists to add an app made before the register, or to finish a `new`
 that stopped after pushing the repo.
 
+An app's GitHub repo is the one its register entry names, so a repo need
+not be named after its slug (Shift's slug is `shift`, its repo
+`titan-shift`). Only an app the register doesn't know yet gets
+`<TITAN_GITHUB_OWNER>/<slug>`.
+
 Every command reads the accounts first, shows the whole plan, and asks
 before changing anything. `--commit` applies without asking and `--plan`
 only shows the plan. Each step does only what is missing, so a failed or

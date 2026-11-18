@@ -67,15 +67,26 @@ class App:
     slug: str
     name: str
     settings: Settings
+    # owner/name on GitHub: the register's entry, else owner/slug.
+    repo: str
 
     @classmethod
-    def from_slug(cls, slug: str, settings: Settings, name: str = "") -> App:
-        """Validate the slug (the template's own rule) and derive the rest."""
+    def from_slug(cls, slug: str, settings: Settings, name: str = "", repo: str = "") -> App:
+        """Validate the slug (the template's own rule) and derive the rest.
+
+        ``repo`` is the app's repo as the register records it; an app that is
+        not in the register yet (``titan new``) gets owner/slug.
+        """
         if not SLUG.match(slug):
             raise TitanError(
                 f"{slug!r}: lowercase letters, digits and hyphens, starting with a letter."
             )
-        return cls(slug=slug, name=name or slug.replace("-", " ").title(), settings=settings)
+        return cls(
+            slug=slug,
+            name=name or slug.replace("-", " ").title(),
+            settings=settings,
+            repo=repo or f"{settings.github_owner}/{slug}",
+        )
 
     @property
     def domain(self) -> str:
@@ -91,11 +102,6 @@ class App:
     def from_email(self) -> str:
         """DEFAULT_FROM_EMAIL, e.g. Tally <tally@mail.ultraniche.ai>."""
         return formataddr((self.name, f"{self.slug}@{self.settings.mail_domain}"))
-
-    @property
-    def repo(self) -> str:
-        """owner/slug on GitHub."""
-        return f"{self.settings.github_owner}/{self.slug}"
 
     @property
     def repo_url(self) -> str:

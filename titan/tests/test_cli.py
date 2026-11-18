@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any
 
@@ -55,6 +56,26 @@ def test_status_changes_nothing(accounts: FakeRender, capsys: pytest.CaptureFixt
     assert "would: Create the shared env group 'titan'" in out
     assert "CNAME  tally" in out
     assert accounts.writes == []
+
+
+def test_the_app_is_looked_up_from_its_registered_repo(
+    accounts: FakeRender, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A repo not named after the slug (Shift's titan-shift) is read from apps.json."""
+    entry: dict[str, Any] = {"slug": "tally", "name": "Tally", "stage": "new", "updates": True}
+    entry |= {"repo": "hugorodgerbrown/titan-tally", "domain": "tally.ultraniche.ai"}
+    github = FakeGitHub(register=json.dumps({"apps": [entry]}))
+    monkeypatch.setattr(cli, "GitHub", lambda: github)
+    asked: list[str] = []
+    monkeypatch.setattr(accounts, "service", lambda name, repo, *a: asked.append(repo))
+    assert cli.main(["status", "tally"]) == 0
+    assert set(asked) == {"https://github.com/hugorodgerbrown/titan-tally"}
+
+
+def test_an_unregistered_app_has_no_registered_repo() -> None:
+    """No register entry yet (before `titan new` records it): App falls back to owner/slug."""
+    github: Any = FakeGitHub()
+    assert cli.registered_repo(github, "tally") == ""
 
 
 def test_deploy_without_a_terminal_only_plans(
