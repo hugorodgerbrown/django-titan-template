@@ -1,1 +1,1 @@
-Your one-time {{ site_name }} verification code: {{ code }}
+{% autoescape off %}Your one-time {{ site_name }} verification code: {{ code }}{% endautoescape %}
