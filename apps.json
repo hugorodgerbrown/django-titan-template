@@ -1,6 +1,14 @@
 {
   "apps": [
     {
+      "slug": "flight",
+      "name": "Flight",
+      "repo": "hugorodgerbrown/flight",
+      "domain": "flight.ultraniche.ai",
+      "stage": "new",
+      "updates": true
+    },
+    {
       "slug": "gondola",
       "name": "Gondola",
       "repo": "hugorodgerbrown/gondola",
